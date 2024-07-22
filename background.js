@@ -1,9 +1,4 @@
-// 当插件安装时触发
-// chrome.runtime.onInstalled.addListener(function() {
-//     console.log("Extension installed");
-// });
 
-  // 处理跨域请求的函数
 function makeCorsRequest(url, callback) {
     fetch(url)  
     .then(response => response.json())  
@@ -17,21 +12,39 @@ function makeCorsRequest(url, callback) {
     });  
 }
 
-  // 示例：监听来自内容脚本的消息
+
 chrome.runtime.onMessage.addListener(
     function(request, sender, sendResponse) {
+      console.log("[test] 收到消息", request);
       if (request.action === "makeCorsRequest") {
-        // 调用跨域请求函数
+        console.log("[test] 发出GET请求");
         makeCorsRequest(request.url, function(error, response) {
             console.log('response:', response);  
             if (error) {
-                // 处理错误
                 console.error(error.message);
+                sendResponse({error:error.message});
             } else {
-                // 将响应发送回内容脚本
                 sendResponse(response);
             }
         });
+      } else if (request.action === "makePOSTRequest"){
+        console.log("[test] 发出POST请求");
+        fetch(request.url,{
+          method: 'POST', 
+          headers:{
+            'Content-Type': 'application/json', 
+          },  
+          body: JSON.stringify(request.data) 
+        })  
+        .then(response => response.json())  
+        .then(data => {  
+          console.log('Data fetched:', data);  
+          sendResponse(data); 
+        })  
+        .catch(error => {  
+          console.error('Fetch error:', error);  
+          sendResponse({error:error.message}); 
+        });  
       }
       return true;
     }

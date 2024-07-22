@@ -16,12 +16,8 @@ function getBrand2(){
   
     if (bylineInfoElement) {  
         let textContent = bylineInfoElement.textContent || bylineInfoElement.innerText; 
-        let match = textContent.match(/Brand: ([^,\s]+)/); 
-        if (match) {  
-            let brandName = match[1];  
-            console.log(brandName)
-            return brandName;
-        } 
+        textContent = textContent.replace("Brand: ", "");
+        return textContent;
     } 
     return null;
 }
@@ -39,14 +35,45 @@ function getBrand3(){
 }
 
 function checkBrand(brand,callback){
-    let url = 'https://search.ipaustralia.gov.au/trademarks/search/count/quick?q='+brand;
-    chrome.runtime.sendMessage({
-        action: "makeCorsRequest",
-        url: url,
-        data: {}
-    },(response)=> {
-        callback(response);
-    });
+    let region = getRegion();
+    console.log("[test] 当前区域："+region);
+    if (region == "au") {
+        console.log("[test] 调用au请求");
+        let url = 'https://search.ipaustralia.gov.au/trademarks/search/count/quick?q='+brand;
+        chrome.runtime.sendMessage({
+            action: "makeCorsRequest",
+            url: url,
+            data: {}
+        },(response)=> {
+            callback(response);
+        });
+
+    } else if (region == "ca") {
+        console.log("[test] 调用ca请求");
+        
+        let url = 'https://ised-isde.canada.ca/cipo/trademark-search/srch';
+        chrome.runtime.sendMessage({
+            action: "makePOSTRequest",
+            url: url,
+            data:  {
+                    "domIntlFilter": "1",
+                    "searchfield1": "all",
+                    "textfield1": brand,
+                    "display": "list",
+                    "maxReturn": "10",
+                    "nicetextfield1": null,
+                    "cipotextfield1": null
+                }
+        },(response)=> {
+            callback({
+                count: response.numFound
+            });
+        });
+    } else if (region == "uk") {
+
+    } else {
+        callback({});
+    }
 }
 
 function showInfo(info){
@@ -71,7 +98,27 @@ function showInfo(info){
     }  
 }
 
+function getRegion(){
+    const parser = new URL(window.location.href);  
+    const hostname = parser.hostname;  
+    const cleanedHostname = hostname.replace(/^www\./, '');  
+    const matches = cleanedHostname.match(/(?:com\.au|ca|co\.uk)$/);  
+    if (matches) {  
+        switch (matches[0]) {  
+            case 'com.au':  
+                return 'au';  
+            case 'ca':  
+                return 'ca';  
+            case 'co.uk':  
+                return 'uk';  
+            default:  
+                return null;  
+        }  
+    }  
+    return null;
+}
 function mainAction(retryTimes){
+    let region = getRegion();
     let brand = getBrand() || getBrand2() || getBrand3();
     if (brand == null && retryTimes > 0) {
         console.log("[test] 查不到品牌，3s后重试");
@@ -96,7 +143,7 @@ function mainAction(retryTimes){
                 state = "<span style=\"color:#ff0000\">没有</span>";
             }
         }
-        showInfo("<b>品牌:"+brand+"<br/>商标状态:"+state+"</b>");
+        showInfo("<b>品牌:"+brand+"<br/>商标状态("+region+"):"+state+"</b>");
     });
 }
 
