@@ -1,6 +1,13 @@
 
-function makeCorsRequest(url, callback) {
-    fetch(url)  
+function makeCorsRequest(url, token,callback) {
+  console.log("[test] get请求，token:",token);
+    fetch(url,{
+      method: 'GET', 
+      headers:{
+        'Content-Type': 'application/json', 
+        'Batoken': token
+      },  
+    })  
     .then(response => response.json())  
     .then(data => {  
       console.log('Data fetched:', data);  
@@ -18,7 +25,7 @@ chrome.runtime.onMessage.addListener(
       console.log("[test] 收到消息", request);
       if (request.action === "makeCorsRequest") {
         console.log("[test] 发出GET请求");
-        makeCorsRequest(request.url, function(error, response) {
+        makeCorsRequest(request.url,request.token, function(error, response) {
             console.log('response:', response);  
             if (error) {
                 console.error(error.message);

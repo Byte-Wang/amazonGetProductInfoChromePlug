@@ -3,7 +3,7 @@
   "name": "亚马逊商品信息查询插件",  
   "version": "1.0",  
   "description": "亚马逊商品信息查询插件",  
-  "permissions": ["activeTab"],  
+  "permissions": ["activeTab","storage"],  
   "action": {  
     "default_popup": "popup.html",  
     "default_icon": {  

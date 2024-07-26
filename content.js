@@ -35,45 +35,37 @@ function getBrand3(){
 }
 
 function checkBrand(brand,callback){
-    let region = getRegion();
-    console.log("[test] 当前区域："+region);
-    if (region == "au") {
-        console.log("[test] 调用au请求");
-        let url = 'https://search.ipaustralia.gov.au/trademarks/search/count/quick?q='+brand;
-        chrome.runtime.sendMessage({
-            action: "makeCorsRequest",
-            url: url,
-            data: {}
-        },(response)=> {
-            callback(response);
-        });
-
-    } else if (region == "ca") {
-        console.log("[test] 调用ca请求");
-        
-        let url = 'https://ised-isde.canada.ca/cipo/trademark-search/srch';
-        chrome.runtime.sendMessage({
-            action: "makePOSTRequest",
-            url: url,
-            data:  {
-                    "domIntlFilter": "1",
-                    "searchfield1": "all",
-                    "textfield1": brand,
-                    "display": "list",
-                    "maxReturn": "10",
-                    "nicetextfield1": null,
-                    "cipotextfield1": null
+    chrome.storage.sync.get('userInfo', function(result) {
+        console.log("[test] 获取用户信息：",result);
+        const userInfo = result.userInfo;
+        if (!userInfo || !userInfo.token) {
+            console.log("[test] 没有token，未登录：");
+            callback({desc: "请先登录！"});
+            return;
+        }
+        let region = getRegion();
+        console.log("[test] 当前区域："+region);
+        if (region == "au" || region == 'ca') {
+            console.log("[test] 调用au请求");
+            let url = 'http://www.jyxwl.cn/index.php/admin/index/checkBrandName?brand='+brand+'&region='+region;
+            chrome.runtime.sendMessage({
+                action: "makeCorsRequest",
+                url: url,
+                token: userInfo.token,
+                data: {}
+            },(response)=> {
+                if (response.code == 1 && response.data.code == 200) {
+                    callback({
+                        count: response.data.count
+                    });
+                } else {
+                    callback(response);
                 }
-        },(response)=> {
-            callback({
-                count: response.numFound
             });
-        });
-    } else if (region == "uk") {
-
-    } else {
-        callback({});
-    }
+        } else {
+            callback({desc:"暂不支持该区域"});
+        }
+    });
 }
 
 function showInfo(info){
@@ -142,6 +134,8 @@ function mainAction(retryTimes){
             } else {
                 state = "<span style=\"color:#ff0000\">没有</span>";
             }
+        } else if (data.desc) {
+            state = data.desc;
         }
         showInfo("<b>品牌:"+brand+"<br/>商标状态("+region+"):"+state+"</b>");
     });
