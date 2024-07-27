@@ -34,6 +34,23 @@ function getBrand3(){
     return null;
 }
 
+function getASIN() {  
+    const url = window.location.href; 
+    // 使用正则表达式匹配/dp/后面的任何字母数字组合（假设ASIN只包含字母和数字）  
+    // 注意：这里假设ASIN是紧跟在/dp/之后，直到遇到路径分隔符（/）或查询字符串（?）为止  
+    const asinPattern = /\/dp\/(\w+)/;  
+    const match = asinPattern.exec(url);  
+  
+    if (match && match.length > 1) {  
+        // 如果找到匹配项，并且匹配项数组长度大于1（即找到了ASIN），则返回它  
+        return match[1];  
+    }  
+  
+    // 如果没有找到ASIN，返回null或空字符串  
+    return null;  
+}  
+  
+
 function checkBrand(brand,callback){
     chrome.storage.sync.get('userInfo', function(result) {
         console.log("[test] 获取用户信息：",result);
@@ -61,6 +78,49 @@ function checkBrand(brand,callback){
                 } else {
                     callback(response);
                 }
+            });
+        } else {
+            callback({desc:"暂不支持该区域"});
+        }
+    });
+}
+
+function checkAsin(asin,callback){
+    chrome.storage.sync.get('userInfo', function(result) {
+        console.log("[test] 获取用户信息：",result);
+        const userInfo = result.userInfo;
+        if (!userInfo || !userInfo.token) {
+            console.log("[test] 没有token，未登录：");
+            callback({desc: "请先登录！"});
+            return;
+        }
+        let region = getRegion();
+        console.log("[test] 当前区域："+region);
+        let stationId = '0';
+
+        if (region == "au") {
+            stationId = '11';
+        } else if (region == "ca") {
+            stationId = '7';
+        } else if (region == "uk") {
+            stationId = '8';
+        } else if (region == "jp") {
+            stationId = '9';
+        }
+        if (stationId != '0') {
+            console.log("[test] 调用checkasin请求");
+            let url = 'http://www.jyxwl.cn/index.php/admin/product/checkAsin';
+            chrome.runtime.sendMessage({
+                action: "makePOSTRequest",
+                url: url,
+                token: userInfo.token,
+                data: {
+                    'asin': asin,
+                    'station_id': stationId
+                }
+            },(response)=> {
+                console.log("[test]  checkasin:",response);
+                callback(response);
             });
         } else {
             callback({desc:"暂不支持该区域"});
@@ -109,6 +169,12 @@ function getRegion(){
     }  
     return null;
 }
+
+function updateInfo(id,value){
+    const element = document.getElementById(id);
+    element.innerHTML = value;
+}
+
 function mainAction(retryTimes){
     let region = getRegion();
     let brand = getBrand() || getBrand2() || getBrand3();
@@ -120,27 +186,52 @@ function mainAction(retryTimes){
         return;
     }
     console.log("[test]当前品牌："+brand);
-    if (brand == null) {
-        showInfo("<b>品牌:获取失败<br/>商标状态:查询失败</b>");
-        return;
+
+    showInfo("<span id=\"feixun_plug_asin\"><b>ASIN：<b/></span>\
+        <br/><span id=\"feixun_plug_region\"><b>区域："+region+"<b/></span>\
+        <br/><span id=\"feixun_plug_brand\"><b>品牌：<b/></span>\
+        <br/><span id=\"feixun_plug_brandState\"><b>商标状态：<b/></span>\
+        <br/><span id=\"feixun_plug_checkasin\"><b>是否在采集系统已存在：<b/></span>\
+         ");
+    
+    if (brand) {
+        updateInfo("feixun_plug_brand","<b>品牌:</b>"+brand);
+        checkBrand(brand,(data)=>{
+            console.log("[test]查询结果：",data);
+            let state = "查询失败";
+            if (data.count != undefined) {
+                if (data.count > 0) {
+                    state = "<span style=\"color:#06b006\">有"+"("+data.count+")</span>";
+                } else {
+                    state = "<span style=\"color:#ff0000\">没有</span>";
+                }
+            } else if (data.desc) {
+                state = data.desc;
+            } else if (data.data.desc) {
+                state = data.data.desc;
+            }
+            updateInfo("feixun_plug_brandState","<b>商标状态:</b>"+state);
+        });
+    } else {
+        updateInfo("feixun_plug_brand","<b>品牌:</b>获取失败");
+        updateInfo("feixun_plug_brandState","<b>商标状态:</b>获取失败");
     }
 
-    checkBrand(brand,(data)=>{
-        console.log("[test]查询结果：",data);
-        let state = "查询失败";
-        if (data.count != undefined) {
-            if (data.count > 0) {
-                state = "<span style=\"color:#06b006\">有"+"("+data.count+")</span>";
-            } else {
-                state = "<span style=\"color:#ff0000\">没有</span>";
+    const asin = getASIN()
+    if (asin) {
+        updateInfo("feixun_plug_asin","<b>ASIN:</b>"+asin);
+        checkAsin(asin,(response)=>{
+            if (response && response.code == 0) {
+                updateInfo("feixun_plug_checkasin","<b>是否在采集系统已存在：<b/><span style=\"color:#ff0000\">已存在</span>");
+            } else if (response && response.code == 1) {
+                updateInfo("feixun_plug_checkasin","<b>是否在采集系统已存在：<b/><span style=\"color:#06b006\">不存在</span>");
+            }  else if (data.desc) {
+                updateInfo("feixun_plug_checkasin","<b>是否在采集系统已存在：<b/>"+data.desc);
             }
-        } else if (data.desc) {
-            state = data.desc;
-        } else if (data.data.desc) {
-            state = data.data.desc;
-        }
-        showInfo("<b>品牌:"+brand+"<br/>商标状态("+region+"):"+state+"</b>");
-    });
+        })
+    }
+
+
 }
 
 mainAction(3);
