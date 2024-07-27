@@ -47,7 +47,7 @@ function checkBrand(brand,callback){
         console.log("[test] 当前区域："+region);
         if (region == "au" || region == 'ca') {
             console.log("[test] 调用au请求");
-            let url = 'http://www.jyxwl.cn/index.php/admin/index/checkBrandName?brand='+brand+'&region='+region;
+            let url = 'http://www.jyxwl.cn/index.php/admin/index/checkBrandName?version=20240727161055&brand='+brand+'&region='+region;
             chrome.runtime.sendMessage({
                 action: "makeCorsRequest",
                 url: url,
@@ -136,6 +136,8 @@ function mainAction(retryTimes){
             }
         } else if (data.desc) {
             state = data.desc;
+        } else if (data.data.desc) {
+            state = data.data.desc;
         }
         showInfo("<b>品牌:"+brand+"<br/>商标状态("+region+"):"+state+"</b>");
     });
