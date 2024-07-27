@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const userInfo = result.userInfo;
         if (userInfo && userInfo.token) {
             var loginSection = document.getElementById('login-container');  
-            loginSection.innerHTML = '<h2>' + userInfo.nickname + "("+userInfo.team.name+")" + '</h2> <input class="logout-button" type="button" id="logoutButton" value="ÍË³ö">  '; 
+            loginSection.innerHTML = '<h2>' + userInfo.nickname +  '</h2> <input class="logout-button" type="button" id="logoutButton" value="ÍË³ö">  '; 
             
             
 
