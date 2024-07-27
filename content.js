@@ -187,11 +187,11 @@ function mainAction(retryTimes){
     }
     console.log("[test]当前品牌："+brand);
 
-    showInfo("<span id=\"feixun_plug_asin\"><b>ASIN：<b/></span>\
-        <br/><span id=\"feixun_plug_region\"><b>区域："+region+"<b/></span>\
-        <br/><span id=\"feixun_plug_brand\"><b>品牌：<b/></span>\
-        <br/><span id=\"feixun_plug_brandState\"><b>商标状态：<b/></span>\
-        <br/><span id=\"feixun_plug_checkasin\"><b>是否在采集系统已存在：<b/></span>\
+    showInfo("<span id=\"feixun_plug_asin\"><b>ASIN：查询中...<b/></span>\
+        <br/><span id=\"feixun_plug_region\"><b>站点："+region+"<b/></span>\
+        <br/><span id=\"feixun_plug_brand\"><b>品牌：查询中...<b/></span>\
+        <br/><span id=\"feixun_plug_brandState\"><b>商标状态：查询中...<b/></span>\
+        <br/><span id=\"feixun_plug_checkasin\"><b>是否在库：查询中...<b/></span>\
          ");
     
     if (brand) {
@@ -201,9 +201,9 @@ function mainAction(retryTimes){
             let state = "查询失败";
             if (data.count != undefined) {
                 if (data.count > 0) {
-                    state = "<span style=\"color:#06b006\">有"+"("+data.count+")</span>";
+                    state = "<span style=\"color:#ff0000\">已注册"+"("+data.count+")</span>";
                 } else {
-                    state = "<span style=\"color:#ff0000\">没有</span>";
+                    state = "<span style=\"color:#06b006\">未注册</span>";
                 }
             } else if (data.desc) {
                 state = data.desc;
@@ -222,11 +222,11 @@ function mainAction(retryTimes){
         updateInfo("feixun_plug_asin","<b>ASIN:</b>"+asin);
         checkAsin(asin,(response)=>{
             if (response && response.code == 0) {
-                updateInfo("feixun_plug_checkasin","<b>是否在采集系统已存在：<b/><span style=\"color:#ff0000\">已存在</span>");
+                updateInfo("feixun_plug_checkasin","<b>是否在库：<b/><span style=\"color:#ff0000\">已存在</span>");
             } else if (response && response.code == 1) {
-                updateInfo("feixun_plug_checkasin","<b>是否在采集系统已存在：<b/><span style=\"color:#06b006\">不存在</span>");
+                updateInfo("feixun_plug_checkasin","<b>是否在库：<b/><span style=\"color:#06b006\">不存在</span>");
             }  else if (data.desc) {
-                updateInfo("feixun_plug_checkasin","<b>是否在采集系统已存在：<b/>"+data.desc);
+                updateInfo("feixun_plug_checkasin","<b>是否在库：<b/>"+data.desc);
             }
         })
     }
