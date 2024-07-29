@@ -85,7 +85,7 @@ function login(captchaId) {
         body: JSON.stringify({
             captcha: captcha,
             captcha_id: captchaId,
-            keep: false,
+            keep: true,
             loading: true,
             password: password,
             username: username,
