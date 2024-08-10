@@ -17,6 +17,12 @@ function getBrand2(){
     if (bylineInfoElement) {  
         let textContent = bylineInfoElement.textContent || bylineInfoElement.innerText; 
         textContent = textContent.replace("Brand: ", "");
+
+        if (textContent.indexOf("Visit the") != -1) {
+            textContent = textContent.replace("Visit the ", "");
+            textContent = textContent.replace(" Store", "");
+        }
+
         return textContent;
     } 
     return null;
@@ -209,6 +215,8 @@ function mainAction(retryTimes){
                 state = data.desc;
             } else if (data.data.desc) {
                 state = data.data.desc;
+            } else if (data.msg) {
+                state = data.msg;
             }
             updateInfo("feixun_plug_brandState","<b>商标状态:</b>"+state);
         });
