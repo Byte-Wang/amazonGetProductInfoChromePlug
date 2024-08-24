@@ -1,7 +1,7 @@
 {  
   "manifest_version": 3,  
   "name": "亚马逊商品信息查询插件",  
-  "version": "1.0",  
+  "version": "1.6",  
   "description": "亚马逊商品信息查询插件",  
   "permissions": ["activeTab","storage"],  
   "action": {  

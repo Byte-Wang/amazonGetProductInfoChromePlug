@@ -70,7 +70,7 @@ function checkBrand(brand,callback){
         console.log("[test] 当前区域："+region);
         if (region == "au" || region == 'ca') {
             console.log("[test] 调用au请求");
-            let url = 'http://www.jyxwl.cn/index.php/admin/index/checkBrandName?version=20240727161055&brand='+brand+'&region='+region;
+            let url = 'http://www.jyxwl.cn/index.php/admin/index/checkBrandName?version=20240727161055&brand='+encodeURIComponent(brand)+'&region='+region;
             chrome.runtime.sendMessage({
                 action: "makeCorsRequest",
                 url: url,
@@ -131,6 +131,46 @@ function checkAsin(asin,callback){
         } else {
             callback({desc:"暂不支持该区域"});
         }
+    });
+}
+
+function getFBA(asin, callback) {
+    chrome.storage.sync.get('userInfo', function(result) {
+        console.log("[test] 获取用户信息：",result);
+        const userInfo = result.userInfo;
+        if (!userInfo || !userInfo.token) {
+            console.log("[test] 没有token，未登录：");
+            callback({desc: "请先登录！"});
+            return;
+        }
+        let region = getRegion();
+        console.log("[test] 当前区域："+region);
+
+        console.log("[test] 调用getFba请求");
+        let url = 'http://www.jyxwl.cn/index.php/admin/index/getFBA?region='+region+'&asin='+asin;
+        chrome.runtime.sendMessage({
+            action: "makeCorsRequest",
+            url: url,
+            token: userInfo.token,
+            data: {}
+        },(response)=> {
+            console.log("[test] 调用getFba请求结果",response);
+            if (response.code == 1 && response.data.code == 200 && response.data.result.status == 1) {
+                let content = response.data.result.content;
+                let cost = (content.fbaFee+content.storageFee+content.referralFee).toFixed(2); // 成本：亚马逊运费+亚马逊仓储费+亚马逊佣金
+                let profit = content.amount - cost; // 利润
+                let profitRate = (profit/content.amount*100).toFixed(2); // 利润率
+                callback({
+                    amount: content.amount+"("+content.currencyCode+")",
+                    totalFBA: cost + "("+content.currencyCode+")",
+                    profitRate: profitRate + "%"
+                });
+            } else {
+                callback(response);
+            }
+        });
+
+
     });
 }
 
@@ -198,6 +238,9 @@ function mainAction(retryTimes){
         <br/><span id=\"feixun_plug_brand\"><b>品牌：查询中...<b/></span>\
         <br/><span id=\"feixun_plug_brandState\"><b>商标状态：查询中...<b/></span>\
         <br/><span id=\"feixun_plug_checkasin\"><b>是否在库：查询中...<b/></span>\
+        <br/><span id=\"feixun_plug_amount\"><b>购物车：查询中...<b/></span>\
+        <br/><span id=\"feixun_plug_totalFba\"><b>FBA费用：查询中...<b/></span>\
+        <br/><span id=\"feixun_plug_profitRate\"><b>利润率：查询中...<b/></span>\
          ");
     
     if (brand) {
@@ -225,8 +268,10 @@ function mainAction(retryTimes){
         updateInfo("feixun_plug_brandState","<b>商标状态:</b>获取失败");
     }
 
+
     const asin = getASIN()
     if (asin) {
+        console.log("[test]222");
         updateInfo("feixun_plug_asin","<b>ASIN:</b>"+asin);
         checkAsin(asin,(response)=>{
             if (response && response.code == 0) {
@@ -237,6 +282,24 @@ function mainAction(retryTimes){
                 updateInfo("feixun_plug_checkasin","<b>是否在库：<b/>"+data.desc);
             }
         })
+    }
+
+    if (asin) {
+        getFBA(asin,(response)=>{
+            if (response.amount) {
+                updateInfo("feixun_plug_amount","<b>购物车：<b/>"+response.amount);
+                updateInfo("feixun_plug_totalFba","<b>FBA费用：<b/>"+response.totalFBA);
+                updateInfo("feixun_plug_profitRate","<b>利润率：<b/>"+response.profitRate);
+            } else if (response.desc) {
+                updateInfo("feixun_plug_amount","<b>购物车：<b/>"+data.desc);
+                updateInfo("feixun_plug_totalFba","<b>FBA费用：<b/>"+data.desc);
+                updateInfo("feixun_plug_profitRate","<b>利润率：<b/>"+data.desc);
+            } else if (response.desc) {
+                updateInfo("feixun_plug_amount","<b>购物车：<b/>查询失败");
+                updateInfo("feixun_plug_totalFba","<b>FBA费用：<b/>查询失败");
+                updateInfo("feixun_plug_profitRate","<b>利润率：<b/>查询失败");
+            }
+        });
     }
 
 
