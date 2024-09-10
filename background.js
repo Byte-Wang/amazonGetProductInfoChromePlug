@@ -5,7 +5,7 @@ function makeCorsRequest(url, token,callback) {
       method: 'GET', 
       headers:{
         'Content-Type': 'application/json', 
-        'Batoken': token
+        'Batoken': token,
       },  
     })  
     .then(response => response.json())  
