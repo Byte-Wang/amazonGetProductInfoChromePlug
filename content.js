@@ -370,7 +370,7 @@ function parserToSerchListView(){
 	newDiv.style.backgroundColor ="#7EC0EE"; 
                 newDiv.style.zIndex = "1000"; 
                 newDiv.style.display = "inline-block";
-                newDiv.style.float = "right";
+                // newDiv.style.float = "right";
                 newDiv.style.minWidth = "250px";
                 newDiv.style.textAlign = "left";
 
