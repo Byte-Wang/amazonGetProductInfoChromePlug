@@ -1,8 +1,8 @@
 {  
   "manifest_version": 3,  
-  "name": "亚马逊商品信息查询插件",  
-  "version": "1.6",  
-  "description": "亚马逊商品信息查询插件",  
+  "name": "菲逊-亚马逊商品信息查询1.8",  
+  "version": "1.8",  
+  "description": "菲逊-亚马逊商品信息查询",  
   "permissions": ["activeTab","storage"],  
   "action": {  
     "default_popup": "popup.html",  

@@ -198,7 +198,8 @@ function showInfo(info){
     let newDiv = document.createElement("div");  
     
     newDiv.style.padding = "10px"; 
-    newDiv.style.backgroundColor = "#f7ddf5";  
+    //newDiv.style.backgroundColor = "#f7ddf5";  
+    newDiv.style.backgroundColor = "#7EC0EE";   //9.12换底色
     newDiv.style.zIndex = "1000"; 
     
     newDiv.innerHTML = info;  
@@ -365,7 +366,8 @@ function parserToSerchListView(){
         
                 // 设置新div的样式  
                 newDiv.style.padding = "10px"; 
-                newDiv.style.backgroundColor = "#f7ddf5";  
+//                newDiv.style.backgroundColor = "#f7ddf5"; 
+	newDiv.style.backgroundColor ="#7EC0EE"; 
                 newDiv.style.zIndex = "1000"; 
                 newDiv.style.display = "inline-block";
                 newDiv.style.float = "right";
