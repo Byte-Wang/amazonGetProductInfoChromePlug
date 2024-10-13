@@ -1,30 +1,30 @@
-<!DOCTYPE html>  
 <html>  
 <head>  
     <title>Home</title>  
     <link rel="stylesheet" type="text/css" href="popup.css">  
 </head>  
 <style>
-    body, html {  
-    height: 300px;  
+body {  
+    height: 450px;  
     width: 300px;
     margin: 0;  
-    padding: 15px;
+    padding: 20px 0px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; /* iOS系统字体 */  
-    background-color: #f4f4f4; /* 类似iOS的浅色背景 */  
+    background-color: #fff; /* 类似iOS的浅色背景 */  
     display: flex;  
     justify-content: center;  
     align-items: center;  
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);  
 }  
   
 .login-container {  
     background-color: #ffffff; /* 白色背景 */  
     border-radius: 10px; /* 圆角 */  
-    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1); /* 阴影 */  
     padding: 20px;  
     width: 300px; /* 宽度可以根据需要调整 */  
     text-align: center;  
 }  
+
   
 .login-container h2 {  
     margin-top: 0;  
@@ -37,7 +37,7 @@
   
 .login-form input[type="text"],  
 .login-form input[type="password"] {  
-    width: calc(100% - 22px); /* 减去padding和border的宽度 */  
+    width: 100%; /* 减去padding和border的宽度 */  
     padding: 10px;  
     margin-bottom: 10px;  
     border: 1px solid #cccccc; /* 浅灰色边框 */  
@@ -87,24 +87,321 @@
     width: 100px;
 }
 
-.logout-button {  
-    width: 130px;
-    height: 40px;  
-    padding: 10px;  
-    background-color: #007aff; /* iOS蓝色 */  
+.red-button {  
+    background-color: #c30202; /* 深蓝色，鼠标悬停效果 */  
+}  
+
+.blue-button {  
+    background-color: #007aff; /* 深蓝色，鼠标悬停效果 */  
+}  
+
+.little-button{
+    width: 50px;
+    height: 30px;  
     border: none;  
     border-radius: 5px;  
     color: white;  
     font-size: 16px;  
     cursor: pointer;  
-    background-color: #c30202; /* 深蓝色，鼠标悬停效果 */  
+}
+
+
+.input-button {  
+    width: 100%;
+    height: 40px;  
+    padding: 10px;  
+    border: none;  
+    border-radius: 5px;  
+    color: white;  
+    font-size: 16px;  
+    cursor: pointer;  
 }  
 
 
+/* 开关容器样式 */  
+.switch-container {  
+    display: flex;  
+    flex-direction: column;  
+    align-items: center;  
+    position: relative; /* 确保容器能够相对定位其子元素 */  
+}  
+  
+/* 自定义的滑块容器，现在它有自己的背景 */  
+.switch {  
+    position: relative;  
+    display: inline-block;  
+    width: 50px;  
+    height: 28px;  
+    background-color: #e0e0e0; /* 默认背景色，可调整为灰色或其他 */  
+    border-radius: 34px;  
+    cursor: pointer;  
+    vertical-align: middle;  
+}  
+  
+/* 隐藏原生的checkbox */  
+.switch input {  
+    opacity: 0;  
+    width: 0;  
+    height: 0;  
+}  
+  
+/* 自定义的滑块 */  
+.slider {  
+    position: absolute;  
+    cursor: pointer;  
+    top: 0;  
+    left: 0;  
+    right: 0;  
+    bottom: 0;  
+    background-color: #ccc; /* 滑块默认颜色 */  
+    -webkit-transition: .4s;  
+    transition: .4s;  
+    border-radius: 34px;  
+    width: 100%; /* 滑块宽度与容器相同 */  
+    height: 100%; /* 滑块高度与容器相同 */  
+}  
+  
+.slider:before {  
+    position: absolute;  
+    content: "";  
+    height: 20px;  
+    width: 20px;  
+    left: 4px;  
+    bottom: 4px;  
+    background-color: white;  
+    -webkit-transition: .4s;  
+    transition: .4s;  
+    border-radius: 50%;  
+}  
+  
+input:checked + .slider {  
+    background-color: #4CAF50; /* 滑块在选中时的绿色背景 */  
+}  
+  
+input:focus + .slider {  
+    box-shadow: 0 0 1px #4CAF50; /* 聚焦时的阴影，可选 */  
+}  
+  
+input:checked + .slider:before {  
+    -webkit-transform: translateX(20px);  
+    -ms-transform: translateX(20px);  
+    transform: translateX(20px);  
+    /* 可以在这里为圆点添加选中时的样式，如背景色变化，但通常保持白色 */  
+}  
+/* 标题样式 */  
+label {  
+    margin-bottom: 10px;  
+    font-size: 16px;  
+}
+
+
+        .user-container{
+            width: 100%;
+        }
+        .title {  
+            font-size: 18px;  
+            font-weight: bold;  
+            text-align: center;  
+            margin-bottom: 20px;  
+        }  
+        .setting-row {  
+            display: flex;  
+            align-items: center;  
+            margin-bottom: 10px;  
+            padding: 0px 10px;
+            justify-content: space-around;
+        }  
+        .setting-label {  
+            width: 45%;  
+            font-size: 14px;  
+            font-weight: bold;  
+        }  
+        .setting-input {  
+            width: 50%;  
+        }  
+        .checkbox-container {  
+            display: flex;  
+            flex-direction: row;  
+        }  
+        .checkbox-item {  
+            margin-bottom: 5px;  
+        }  
+        .checkbox-item input[type="checkbox"] {  
+            -webkit-appearance: none;  
+            appearance: none;  
+            width: 20px;  
+            height: 20px;  
+            border: 1px solid #ccc;  
+            border-radius: 5px;  
+            background: white;  
+            position: relative;  
+            cursor: pointer;  
+            outline: none;  
+        }  
+        .checkbox-item input[type="checkbox"]:checked {  
+            background: #007BFF;  
+            border-color: #007BFF;  
+            animation: check-animation 0.3s ease;  
+        }  
+        .checkbox-item input[type="checkbox"]:checked::before {  
+            content: '√';  
+            font-size: 18px;  
+            color: white;  
+            position: absolute;  
+            top: -2px;  
+            left: 2px;  
+        }  
+        .text-input input[type="text"] {  
+            width: 100%;  
+            padding: 8px;  
+            border: 1px solid #ccc;  
+            border-radius: 5px;  
+            box-sizing: border-box;  
+            outline: none;  
+        }  
+        .switch-container {  
+            position: relative;  
+            width: 50px;  
+            height: 25px;  
+        }  
+        .switch-container input[type="checkbox"] {  
+            opacity: 0;  
+            width: 0;  
+            height: 0;  
+        }  
+        .switch-slider {  
+            position: absolute;  
+            cursor: pointer;  
+            top: 0;  
+            left: 0;  
+            right: 0;  
+            bottom: 0;  
+            background-color: #ccc;  
+            transition: 0.4s;  
+            border-radius: 25px;  
+        }  
+        .switch-slider:before {  
+            position: absolute;  
+            content: "";  
+            height: 21px;  
+            width: 21px;  
+            left: 2px;  
+            bottom: 2px;  
+            background-color: white;  
+            transition: 0.4s;  
+            border-radius: 50%;  
+        }  
+        .switch-container input[type="checkbox"]:checked + .switch-slider {  
+            background-color: #007BFF;  
+        }  
+        .switch-container input[type="checkbox"]:checked + .switch-slider:before {  
+            transform: translateX(26px);  
+        }  
+        .setting-header {
+            padding-bottom: 10px;
+            border-bottom: 1px solid #aaa;
+        }
+        .username {
+            font-size: 18px;
+        }
+        .logo {
+            line-height: 25px;
+        }
+        .logo img{
+            width: 25px;
+            height: 25px;
+        }
+        .logo span{
+            position: fixed;
+        }
+        @keyframes check-animation {  
+            0% {  
+                transform: scale(0.8);  
+            }  
+            100% {  
+                transform: scale(1);  
+            }  
+        }  
+
+        .feixun_plug_toast {
+            z-index: 999;
+            position: fixed;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+ 
 
 </style>
 <body>  
-    <div id="login-container"></div>  
+    <div id="login-container" class="login-container"></div>  
+
+    <div class="user-container" hidden  id="user-container">  
+        <div class="setting-row setting-header">  
+            <div class="logo"><img src="icon128.png"/><span>斐迅</span></div>
+            <div style="width:100px;"></div>
+            <div>
+                <span class="username" id="username-label"></span>
+                <input type="button" class="little-button red-button" id="logoutButton" value="退出">   
+            </div>
+        </div>  
+        <div class="title">预设提醒条件设置</div>  
+        <div class="setting-row">  
+            <div class="setting-label">配送方式：</div>  
+            <div class="setting-input checkbox-container">  
+                <div class="checkbox-item"><input type="checkbox" id="fba"> FBA</div>  
+                <div class="checkbox-item"><input type="checkbox" id="fbm"> FBM</div>  
+                <div class="checkbox-item"><input type="checkbox" id="amz"> AMZ</div>  
+            </div>  
+        </div>  
+        <div class="setting-row">  
+            <div class="setting-label">卖家数：</div>  
+            <div class="setting-input text-input">  
+                <input type="text" id="sellerCount" placeholder="">  
+            </div>  
+        </div>  
+        <div class="setting-row">  
+            <div class="setting-label">类目排名：</div>  
+            <div class="setting-input text-input">  
+                <input type="text" id="categorySort" placeholder="">  
+            </div>  
+        </div>  
+        <div class="setting-row">  
+            <div class="setting-label">购物车：</div>  
+            <div class="setting-input text-input">  
+                <input type="text" id="amount" placeholder="">  
+            </div>  
+        </div>  
+        <div class="setting-row">  
+            <div class="setting-label">利润率：</div>  
+            <div class="setting-input text-input">  
+                <input type="text" id="profitRate" placeholder="">  
+            </div>  
+        </div>  
+        <div class="setting-row">  
+            <div class="setting-label">评分：</div>  
+            <div class="setting-input text-input">  
+                <input type="text" id="ReviewNumber" placeholder="">  
+            </div>  
+        </div>  
+        <div class="setting-row">  
+            <div class="setting-label">从wipo查询品牌：</div>  
+            <div class="setting-input">  
+                <div class="switch">  
+                    <input type="checkbox" id="switch" name="switch" >  
+                    <label for="switch" class="slider round"></label>  
+                </div>  
+            </div>  
+        </div>  
+
+        <div class="setting-row">  
+            <input type="button" class="input-button blue-button" id="saveButton" value="保存"> 
+        </div>
+
+    </div>  
+
     <script src="popup.js"></script>  
 </body>  
 </html>

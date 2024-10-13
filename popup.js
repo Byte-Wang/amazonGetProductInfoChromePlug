@@ -1,43 +1,173 @@
 document.addEventListener('DOMContentLoaded', function() {  
     chrome.storage.sync.get('userInfo', function(result) { 
         console.log('获取登录信息：',result.userInfo); 
-        const userInfo = result.userInfo;
-        if (userInfo && userInfo.token) {
-            var loginSection = document.getElementById('login-container');  
-            loginSection.innerHTML = '<h2>' + userInfo.nickname +  '</h2> <input class="logout-button" type="button" id="logoutButton" value="退出">  '; 
-            
-            
+        chrome.storage.sync.get('feixunUserConfig', function(userConfig) { 
+        
+            userConfig = userConfig.feixunUserConfig;
 
-            var logoutButton = document.getElementById('logoutButton');  
-            logoutButton.addEventListener('click', function() {  
-                logout();  
-            }); 
-        } else {
-            // 如果未登录，显示登录框  
-            var loginSection = document.getElementById('login-container');  
-            var captchaId = generateRandomId();
-            loginSection.innerHTML = `  
-                <h2>产品信息采集工具</h2>  
-                <div class="login-form"  id="loginForm">  
-                    <input type="text" placeholder="请输入用户名" id="username" required>  
-                    <input type="password" placeholder="请输入密码" id="password" required>  
-                    <div>
-                    <input type="test" class="captcha-input" placeholder="验证码"  id="captcha" required>  <img class="captcha-image" src="`+"http://www.jyxwl.cn/index.php/api/common/captcha?id="+captchaId+`">
-                    </div>
-                    <input type="button" id="loginButton" value="登录">  
-                </div> 
-            `;  
+            console.log('获取用户配置信息：',userConfig); 
+            const userInfo = result.userInfo;
 
+            if (!userConfig) {
+                console.log('初始化用户配置'); 
+                userConfig = {
+                    useWipoSwitch: "use",
+                    shipsFromTypes: ['FBA','FBM','AMZ'],
+                    soldByNumber: 8,
+                    categoryRank: 50000,
+                    amount: 10,
+                    profitRate: 45,
+                    reviewNumber: 3,
+                };
+            }
+
+            let useWipoSwitch = (userConfig && userConfig.useWipoSwitch)?userConfig.useWipoSwitch:"use";
+            let shipsFromTypes = (userConfig && userConfig.shipsFromTypes)?userConfig.shipsFromTypes:['FBA','FBM','AMZ'];
+            let soldByNumber =  (userConfig && userConfig.soldByNumber)?userConfig.soldByNumber:8;
+            let categoryRank = (userConfig && userConfig.categoryRank)?userConfig.categoryRank:50000;
+            let amount = (userConfig && userConfig.amount)?userConfig.amount:10.0;
+            let profitRate = (userConfig && userConfig.profitRate)?userConfig.profitRate:45;
+            let reviewNumber = (userConfig && userConfig.reviewNumber)?userConfig.reviewNumber:3.0;
             
+            if (userInfo && userInfo.token) {
+                // 已登录，关闭登录页面，显示配置页面
+                let loginSection = document.getElementById('login-container');  
+                let userContainer = document.getElementById('user-container');  
+                loginSection.hidden = true;
+                userContainer.hidden = false;
+                
+                // 显示用户名
+                var usernameLabel = document.getElementById('username-label');  
+                usernameLabel.innerHTML = userInfo.nickname;
+            
+                
 
-            var loginButton = document.getElementById('loginButton');  
-            loginButton.addEventListener('click', function() {  
-                login(captchaId);  
-            });  
-        }
+                // 初始化用户配置到页面
+                var switchEle = document.getElementById('switch');  
+                switchEle.checked = useWipoSwitch == "use"?true:false;
+
+                var fbaEle = document.getElementById('fba'); 
+                fbaEle.checked = shipsFromTypes.includes('FBA')?true:false;
+
+                var fbmEle = document.getElementById('fbm'); 
+                fbmEle.checked = shipsFromTypes.includes('FBM')?true:false;
+
+                var amzEle = document.getElementById('amz'); 
+                amzEle.checked = shipsFromTypes.includes('AMZ')?true:false;
+
+                var sellerCountEle = document.getElementById('sellerCount'); 
+                sellerCountEle.value = soldByNumber;
+
+                var categorySortEle = document.getElementById('categorySort'); 
+                categorySortEle.value = categoryRank;
+
+                var amountEle = document.getElementById('amount'); 
+                amountEle.value = amount;
+
+                var profitRateEle = document.getElementById('profitRate'); 
+                profitRateEle.value = profitRate;
+
+                var ReviewNumberEle = document.getElementById('ReviewNumber'); 
+                ReviewNumberEle.value = reviewNumber;
+
+                
+                var logoutButton = document.getElementById('logoutButton');  
+                logoutButton.addEventListener('click', function() {  
+                    let userContainer = document.getElementById('user-container');  
+                    userContainer.hidden = true;
+                    logout();  
+                }); 
+
+
+                // 监听登出按钮
+                var saveButton = document.getElementById('saveButton');  
+                saveButton.addEventListener('click', function() {  
+                    userConfig = {
+                        useWipoSwitch: switchEle.checked?'use':'notUse',
+                        shipsFromTypes: [fbaEle.checked?'FBA':'',fbmEle.checked?'FBM':'',amzEle.checked?'AMZ':''],
+                        soldByNumber: sellerCountEle.value,
+                        categoryRank: categorySortEle.value,
+                        amount: amountEle.value,
+                        profitRate: profitRateEle.value,
+                        reviewNumber: ReviewNumberEle.value,
+                    };
+
+                    console.log("更新用户配置", userConfig);
+                    chrome.storage.sync.set({'feixunUserConfig': userConfig}, function() {  
+                        console.log('保存成功');  
+                        feixunShowToast('保存成功');
+                        // location.reload();
+                    });  
+                }); 
+        
+                // var switchInput = document.getElementById('switch');  
+                // console.log('获取开关按钮：',switchInput);
+                // switchInput.addEventListener('change', function() {  
+                //     debugger;
+                //     if (this.checked) {  
+                //         console.log('开关已打开');  
+                //         chrome.storage.sync.set({'useWipoSwitch': {value: 1}}, function() {  
+                //             console.log('保存成功');  
+                //             location.reload();
+                //         });  
+                //     } else {  
+                //         console.log('开关已关闭');  
+                //         chrome.storage.sync.set({'useWipoSwitch': {value: 0}}, function() {  
+                //             console.log('保存成功');  
+                //             location.reload();
+                //         });  
+                //     }  
+                // });  
+            } else {
+                // 如果未登录，显示登录框  
+                var loginSection = document.getElementById('login-container');  
+                var captchaId = generateRandomId();
+                loginSection.innerHTML = `  
+                    <h2>产品信息采集工具</h2>  
+                    <div class="login-form"  id="loginForm">  
+                        <input type="text" placeholder="请输入用户名" id="username" required>  
+                        <input type="password" placeholder="请输入密码" id="password" required>  
+                        <div>
+                        <input type="test" class="captcha-input" placeholder="验证码"  id="captcha" required>  <img class="captcha-image" src="`+"http://www.jyxwl.cn/index.php/api/common/captcha?id="+captchaId+`">
+                        </div>
+                        <input type="button" id="loginButton" value="登录">  
+                    </div> 
+                `;  
+
+                
+
+                var loginButton = document.getElementById('loginButton');  
+                loginButton.addEventListener('click', function() {  
+                    let userContainer = document.getElementById('user-container');  
+                    userContainer.hidden = false;
+                    login(captchaId);  
+                });  
+            }
+        });
     });
 
 });
+
+function feixunShowToast(content) {
+    const targetElement = document.getElementById('saveButton');
+    if (!targetElement) return;
+
+    const toast = document.createElement('div');
+    toast.classList.add('feixun_plug_toast');
+    toast.textContent = content;
+    document.body.appendChild(toast);
+
+    const rect = targetElement.getBoundingClientRect();
+    toast.style.top = rect.top - 50 + 'px';
+    toast.style.left = rect.left + (rect.width / 2) - (toast.offsetWidth / 2) + 'px';
+
+    toast.style.display = 'block';
+
+    setTimeout(() => {
+      toast.style.display = 'none';
+      document.body.removeChild(toast);
+    }, 3000);
+}
 
 function generateRandomId() {  
     // 生成一个长度为8的十六进制字符串  
