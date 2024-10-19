@@ -55,6 +55,31 @@ function getASIN() {
     // 如果没有找到ASIN，返回null或空字符串  
     return null;  
 }  
+
+function checkVersionIsAvalible(callback){
+    chrome.storage.sync.get('userInfo', function(result) {
+        FXLog("[test] 获取用户信息：",result);
+        const userInfo = result.userInfo;
+        if (!userInfo || !userInfo.token) {
+            FXLog("[test] 没有token，未登录：");
+            callback({code: 401, desc: "请先登录！"});
+            return;
+        }
+        
+       
+        let url = 'http://www.jyxwl.cn/index.php/admin/index/checkChromePlugVersion?version=' + window.feixunPlugVersion;
+        chrome.runtime.sendMessage({
+            action: "makeCorsRequest",
+            url: url,
+            token: userInfo.token,
+            data: {}
+        },(response)=> {
+            FXLog("[test] 插件可用状态：",response);
+            callback(response);
+        });
+
+    });
+}
   
 
 function checkBrandOld(brand,callback){
@@ -1349,7 +1374,8 @@ function mainAction(){
             profitRate: 45,
             reviewNumber: 3,
         };
-        window.feixunPlugVersion = "20240727161054";
+
+        window.feixunPlugVersion = "20241019050933";
 
         if (hasTitleFeatureDiv()) {
             parserToTitleFeatureDiv(3);
@@ -1369,6 +1395,26 @@ function mainAction(){
         } else {
             FXLog("[test] 未知页面");
         }
+
+        checkVersionIsAvalible((res)=>{
+            if (res && res.data && res.data.code == 200) {
+
+            } else {
+               const mainContentViews = document.getElementsByClassName("feixun_plug_container");
+               for (let i = 0; i < mainContentViews.length; i++) {
+                    const element = mainContentViews[i];
+                    let state = "接口请求异常";
+                    if (res && res.data && res.data.desc) {
+                        state = res.data.desc;
+                    } else if (res && res.desc) {
+                        state = res.desc;
+                    } else if (res && res.msg) {
+                        state = res.msg;
+                    }
+                    element.innerHTML = "<h3>"+state+"</h3>";
+                }
+            }
+        });
     });
     
 }
