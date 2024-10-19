@@ -1,7 +1,7 @@
 {  
   "manifest_version": 3,  
-  "name": "菲逊-亚马逊商品信息查询1.8",  
-  "version": "1.8",  
+  "name": "菲逊-亚马逊商品信息查询2.0",  
+  "version": "2.0",  
   "description": "菲逊-亚马逊商品信息查询",  
   "permissions": ["activeTab","storage"],  
   "action": {  
