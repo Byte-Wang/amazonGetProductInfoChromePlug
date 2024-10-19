@@ -288,7 +288,7 @@ function hasSearchResultDiv(){
     }
 }
 
-function showInfo(info){
+function addStyle(){
     var style = document.createElement('style');  
     style.appendChild(document.createTextNode("\
         .feixun_plug_container {  \
@@ -360,6 +360,7 @@ function showInfo(info){
             overflow: hidden;\
             text-overflow: ellipsis;\
             width: 150px;\
+            height: 30px;\
         }\
         .feixun_plug_row {\
         display: flex; \
@@ -396,6 +397,10 @@ function showInfo(info){
               }\
         "));  
     document.head.appendChild(style);
+}
+
+function showInfo(info){
+    addStyle();
 
     let newDiv = document.createElement("div");  
     
@@ -444,8 +449,8 @@ function updateInfo(id,value){
     element.innerHTML = value;
 }
 
-function getSoldBy(callback){
-    const element = document.getElementById('sellerProfileTriggerId');
+function getSoldBy(callback,doc = document){
+    const element = doc.getElementById('sellerProfileTriggerId');
     if (element) {
         callback(element.innerHTML);
     } else {
@@ -457,8 +462,8 @@ function getSoldBy(callback){
 
   
 // 定义一个函数来查找和解析符合条件的span元素  
-function getSoldByNumber(callback) {  
-    const container = document.getElementById('dynamic-aod-ingress-box');  
+function getSoldByNumber(callback,doc = document) {  
+    const container = doc.getElementById('dynamic-aod-ingress-box');  
     if (!container) {
         callback('**');
         return;
@@ -484,8 +489,8 @@ function getSoldByNumber(callback) {
     callback(findNumber);
 }  
 
-function getShipsFrom(callback) {  
-    const container = document.getElementById('fulfillerInfoFeature_feature_div');  
+function getShipsFrom(callback,doc = document) {  
+    const container = doc.getElementById('fulfillerInfoFeature_feature_div');  
     let brand = getBrand() || getBrand2() || getBrand3();
     if (!container) {
         callback('**');
@@ -510,13 +515,13 @@ function getShipsFrom(callback) {
     callback(ShipsFrom);
 }  
 
-function getBestSellersRank(callback){
+function getBestSellersRank(callback,doc = document){
     let finded = false;
     let result = {
         rank: "",
         category: ""
     };
-    const container = document.getElementById('detailBulletsWrapper_feature_div');  
+    const container = doc.getElementById('detailBulletsWrapper_feature_div');  
     if (container) {
         // 使用querySelectorAll查找所有span元素，然后遍历它们  
         const spans = container.querySelectorAll('span');  
@@ -548,18 +553,18 @@ function getBestSellersRank(callback){
     if (finded) {
         callback(result);
     } else {
-        getBestSellersRank2(callback);
+        getBestSellersRank2(callback,doc);
     }
     
 }
 
-function getBestSellersRank2(callback){
+function getBestSellersRank2(callback,doc = document){
     let result = {
         rank: "",
         category: ""
     };
     let finded = false;
-    let BestSellersRank = getTableValueByTitle("productDetails_detailBullets_sections1","Best Sellers Rank");
+    let BestSellersRank = getTableValueByTitle("productDetails_detailBullets_sections1","Best Sellers Rank",doc);
     FXLog("[test] getBestSellersRank2: "+BestSellersRank);
     if (BestSellersRank) {
         // 移除 (See Top ...) 部分  
@@ -594,16 +599,16 @@ function getBestSellersRank2(callback){
     if (finded) {
         callback(result);
     } else {
-        getBestSellersRank3(callback);
+        getBestSellersRank3(callback,doc);
     }
 }
 
-function getBestSellersRank3(callback){
+function getBestSellersRank3(callback,doc = document){
     let result = {
         rank: "",
         category: ""
     };
-    const productDetail = document.getElementById("productDetails_expanderTables_depthLeftSections");
+    const productDetail = doc.getElementById("productDetails_expanderTables_depthLeftSections");
     if (productDetail) {
         const tables = productDetail.querySelectorAll('table');
         tables.forEach(table => {
@@ -644,14 +649,14 @@ function getBestSellersRank3(callback){
 
 
 
-function getSizeInfo(callback){
+function getSizeInfo(callback,doc = document){
 
     let result = {
         size: "",
         weight: ""
     };
 
-    const container = document.getElementById('detailBullets_feature_div');  
+    const container = doc.getElementById('detailBullets_feature_div');  
     FXLog("获取到产品详情对象：",container);
     if (!container) {
         getSizeInfo2(callback);
@@ -684,16 +689,16 @@ function getSizeInfo(callback){
         callback(result);
     } else {
         FXLog("每获取到尺寸信息，尝试方法2");
-        getSizeInfo2(callback);
+        getSizeInfo2(callback,doc);
     }
 }
 
-function getSizeInfo2(callback){
+function getSizeInfo2(callback,doc = document){
     let result = {
         size: "",
         weight: ""
     };
-    let sizeInfo = getTableValueByTitle("productDetails_techSpec_section_1","Package Dimensions");
+    let sizeInfo = getTableValueByTitle("productDetails_techSpec_section_1","Package Dimensions",doc);
     FXLog("从表格获取尺寸信息：",sizeInfo);
     if (sizeInfo) {
         let sizeInfoArr = sizeInfo.split(";");
@@ -714,9 +719,9 @@ function getSizeInfo2(callback){
 // 假设这个HTML代码已经加载到页面中  
   
 // 定义一个函数来查找并返回指定标题的值  
-function getTableValueByTitle(tableId, title) {  
+function getTableValueByTitle(tableId, title,doc = document) {  
     // 获取表格元素  
-    var table = document.getElementById(tableId); 
+    var table = doc.getElementById(tableId); 
     if (!table) {
         return null;
     } 
@@ -750,10 +755,10 @@ function FXLog(...args) {
     console.log(`[${datatime}][feixunLog]`,...args);
 }
 
-function getAvailableDate(callback){
+function getAvailableDate(callback,doc = document){
     let result = "";
     let finded = false;
-    const container = document.getElementById('detailBullets_feature_div');  
+    const container = doc.getElementById('detailBullets_feature_div');  
     FXLog("获取时间对象", container);
     if (container) {
         // 使用querySelectorAll查找所有span元素，然后遍历它们  
@@ -788,13 +793,13 @@ function getAvailableDate(callback){
     if (finded) {
         callback(result);
     } else {
-        getAvailableDate2(callback);
+        getAvailableDate2(callback,doc);
     }
 
 }
 
-function getAvailableDate2(callback){
-    let availableDate = getTableValueByTitle("productDetails_detailBullets_sections1","Date First Available");
+function getAvailableDate2(callback,doc = document){
+    let availableDate = getTableValueByTitle("productDetails_detailBullets_sections1","Date First Available",doc);
 
     let result = "";
     if (availableDate) {
@@ -812,8 +817,8 @@ function getAvailableDate2(callback){
     callback(result);
 }
 
-function getReviewNumber(callback){
-    const container = document.getElementById('acrPopover');
+function getReviewNumber(callback,doc = document){
+    const container = doc.getElementById('acrPopover');
     let ReviewNumber = "";
     if (container) {
         ReviewNumber = container.title.substring(0,3);
@@ -842,8 +847,8 @@ function feixunShowToast(id,content) {
     }, 3000);
 }
 
-function getAsinType(callback){
-    const container = document.getElementById('provenanceCertifications_feature_div');
+function getAsinType(callback,doc = document){
+    const container = doc.getElementById('provenanceCertifications_feature_div');
     let finded = false;
     if(container){
         const divs = container.querySelectorAll('div');  
@@ -860,12 +865,25 @@ function getAsinType(callback){
     }
 }
 
-function getMerchantID(){
-    const container = document.getElementById('merchantID');
+function getMerchantID(doc = document){
+    const container = doc.getElementById('merchantID');
     if(container){ 
         return container.value;
     }
     return ""
+}
+
+function copyById(id){
+    const container = document.getElementById(id);
+    if (container && container.textContent) {
+        const tempTextarea = document.createElement('textarea');
+        tempTextarea.value = container.textContent;
+        document.body.appendChild(tempTextarea);tempTextarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempTextarea);
+    }
+
+    feixunShowToast(id,'复制成功');
 }
 
 function parserToTitleFeatureDiv(retryTimes){
@@ -926,16 +944,7 @@ function parserToTitleFeatureDiv(retryTimes){
     svgElement.addEventListener('click', function() {
         // 在这里添加点击后的处理逻辑
         FXLog('SVG 元素被点击了');
-        const container = document.getElementById("feixun_plug_asin");
-        if (container && container.textContent) {
-            const tempTextarea = document.createElement('textarea');
-            tempTextarea.value = container.textContent;
-            document.body.appendChild(tempTextarea);tempTextarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempTextarea);
-        }
-
-        feixunShowToast('feixun_plug_asin','复制成功');
+        copyById("feixun_plug_asin");
     });
 
     const copyBrandElement = document.getElementById('feixun_plug_copy_brand_img');
@@ -944,16 +953,7 @@ function parserToTitleFeatureDiv(retryTimes){
     copyBrandElement.addEventListener('click', function() {
         // 在这里添加点击后的处理逻辑
         FXLog('SVG 元素被点击了');
-        const container = document.getElementById("feixun_plug_brand");
-        if (container && container.textContent) {
-            const tempTextarea = document.createElement('textarea');
-            tempTextarea.value = container.textContent;
-            document.body.appendChild(tempTextarea);tempTextarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempTextarea);
-        }
-
-        feixunShowToast('feixun_plug_brand','复制成功');
+        copyById("feixun_plug_brand");
     });
 
 
@@ -981,15 +981,20 @@ function parserToTitleFeatureDiv(retryTimes){
                 reviewNumber: 3,
             };
 
-            renderProductInfo(brand,region);
+            renderProductInfo(brand,region,null,false);
         });
 
     });
 
-    renderProductInfo(brand,region);
+    renderProductInfo(brand,region,null,false);
 }
 
-function renderProductInfo(brand,region){
+function renderProductInfo(brand,region,listAsin,isList,detailDoc){
+
+    const idSubfix = isList ? ("_"+listAsin) : "";
+    if (!isList) {
+        detailDoc = document;
+    }
     
     if (brand) {
         
@@ -1000,7 +1005,7 @@ function renderProductInfo(brand,region){
             brandListUrl = bylineInfo.href;
         }
 
-        updateInfo("feixun_plug_brand","<a href='"+brandListUrl+"' target=\"_blank\">"+brand+"<a/>");
+        updateInfo("feixun_plug_brand"+idSubfix,"<a href='"+brandListUrl+"' target=\"_blank\">"+brand+"<a/>");
         checkBrandWithAll(brand,(data)=>{
             FXLog("[test]查询品牌结果：",data);
             
@@ -1041,25 +1046,24 @@ function renderProductInfo(brand,region){
                 }
             }
 
-            updateInfo("feixun_plug_brandState",state);
+            updateInfo("feixun_plug_brandState"+idSubfix,state);
         });
     } else {
-        updateInfo("feixun_plug_brand","获取失败");
-        updateInfo("feixun_plug_brandState","获取失败");
+        updateInfo("feixun_plug_brand"+idSubfix,"获取失败");
+        updateInfo("feixun_plug_brandState"+idSubfix,"获取失败");
     }
 
 
-    const asin = getASIN()
+    const asin = isList ? listAsin : getASIN();
     if (asin) {
-        FXLog("[test]222");
-        updateInfo("feixun_plug_asin",asin);
+        updateInfo("feixun_plug_asin"+idSubfix,asin);
         checkAsin(asin,(response)=>{
             if (response && response.code == 0) {
-                updateInfo("feixun_plug_checkasin","<span class=\"feixun_plug_flag_red\">已存在（"+region+")</span>");
+                updateInfo("feixun_plug_checkasin"+idSubfix,"<span class=\"feixun_plug_flag_red\">已存在（"+region+")</span>");
             } else if (response && response.code == 1) {
-                updateInfo("feixun_plug_checkasin","<span class=\"feixun_plug_flag_green\">不存在（"+region+")</span>");
+                updateInfo("feixun_plug_checkasin"+idSubfix,"<span class=\"feixun_plug_flag_green\">不存在（"+region+")</span>");
             }  else if (data.desc) {
-                updateInfo("feixun_plug_checkasin",data.desc);
+                updateInfo("feixun_plug_checkasin"+idSubfix,data.desc);
             }
         })
 
@@ -1075,34 +1079,34 @@ function renderProductInfo(brand,region){
                     profitRateClassType = "feixun_plug_flag_red"
                 }
 
-                updateInfo("feixun_plug_amount","<span class=\""+classType+"\">" + response.amount + "</span>");
-                updateInfo("feixun_plug_totalFba",response.totalFBA);
-                updateInfo("feixun_plug_profitRate","<span class=\""+profitRateClassType+"\">" + response.profitRate + "</span>");
+                updateInfo("feixun_plug_amount"+idSubfix,"<span class=\""+classType+"\">" + response.amount + "</span>");
+                updateInfo("feixun_plug_totalFba"+idSubfix,response.totalFBA);
+                updateInfo("feixun_plug_profitRate"+idSubfix,"<span class=\""+profitRateClassType+"\">" + response.profitRate + "</span>");
             } else if (response.desc) {
-                updateInfo("feixun_plug_amount",data.desc);
-                updateInfo("feixun_plug_totalFba",data.desc);
-                updateInfo("feixun_plug_profitRate",data.desc);
+                updateInfo("feixun_plug_amount"+idSubfix,data.desc);
+                updateInfo("feixun_plug_totalFba"+idSubfix,data.desc);
+                updateInfo("feixun_plug_profitRate"+idSubfix,data.desc);
             } else if (response.desc) {
-                updateInfo("feixun_plug_amount","查询失败");
-                updateInfo("feixun_plug_totalFba","查询失败");
-                updateInfo("feixun_plug_profitRate","查询失败");
+                updateInfo("feixun_plug_amount"+idSubfix,"查询失败");
+                updateInfo("feixun_plug_totalFba"+idSubfix,"查询失败");
+                updateInfo("feixun_plug_profitRate"+idSubfix,"查询失败");
             }
         });
     }
 
 
     getSoldBy((response)=>{
-        var SoldByMainUrl = "https://" + window.location.host + "/sp?seller=" + getMerchantID();
-        updateInfo("feixun_plug_soldBy","<a href='"+SoldByMainUrl+"' target=\"_blank\">"+response+"<a/>");
-    });
+        var SoldByMainUrl = "https://" + window.location.host + "/sp?seller=" + getMerchantID(detailDoc);
+        updateInfo("feixun_plug_soldBy"+idSubfix,"<a href='"+SoldByMainUrl+"' target=\"_blank\">"+response+"<a/>");
+    },detailDoc);
 
     getSoldByNumber((response)=>{
         var classType = "feixun_plug_flag_green";
         if (parseInt(response) >= window.feixunUserConfig.soldByNumber) {
             classType = "feixun_plug_flag_red"
         }
-        updateInfo("feixun_plug_soldByNumber","<span class=\""+classType+"\">" + response + "</span>");
-    });
+        updateInfo("feixun_plug_soldByNumber"+idSubfix,"<span class=\""+classType+"\">" + response + "</span>");
+    },detailDoc);
 
     getShipsFrom((response)=>{
         var type = response.substring(0,3);
@@ -1110,26 +1114,26 @@ function renderProductInfo(brand,region){
         if (window.feixunUserConfig.shipsFromTypes.includes(type)) {
             classType = "feixun_plug_flag_red";
         }
-        updateInfo("feixun_plug_ShipsFrom","<span class=\""+classType+"\">" + response + "</span>");
-    });
+        updateInfo("feixun_plug_ShipsFrom"+idSubfix,"<span class=\""+classType+"\">" + response + "</span>");
+    },detailDoc);
 
     getBestSellersRank((response)=>{
         var classType = "feixun_plug_flag_green";
         if (parseInt(response.rank) >= window.feixunUserConfig.categoryRank) {
             classType = "feixun_plug_flag_red";
         }
-        updateInfo("feixun_plug_rank","<span class=\""+classType+"\">" + response.rank + "</span>");
-        updateInfo("feixun_plug_category",response.category);
-    });
+        updateInfo("feixun_plug_rank"+idSubfix,"<span class=\""+classType+"\">" + response.rank + "</span>");
+        updateInfo("feixun_plug_category"+idSubfix,response.category);
+    },detailDoc);
 
     getSizeInfo((response)=>{
         // updateInfo("feixun_plug_size","<b>尺寸:</b>"+response.size);
-        updateInfo("feixun_plug_weight",response.weight);
-    });
+        updateInfo("feixun_plug_weight"+idSubfix,response.weight);
+    },detailDoc);
 
     getAvailableDate((response)=>{
-        updateInfo("feixun_plug_AvailableDate",response);
-    });
+        updateInfo("feixun_plug_AvailableDate"+idSubfix,response);
+    },detailDoc);
 
     getReviewNumber((response)=>{
         var classType = "feixun_plug_flag_green";
@@ -1137,17 +1141,17 @@ function renderProductInfo(brand,region){
             classType = "feixun_plug_flag_red"
         }
         
-        updateInfo("feixun_plug_ReviewNumber","<span class=\""+classType+"\">" + response + "</span>");
-    });
+        updateInfo("feixun_plug_ReviewNumber"+idSubfix,"<span class=\""+classType+"\">" + response + "</span>");
+    },detailDoc);
 
     getAsinType((response)=>{
         if (response != "") {
-            updateInfo("feixun_plug_asinType","<span class=\"feixun_plug_flag_red\">"+response+"</span>");
+            updateInfo("feixun_plug_asinType"+idSubfix,"<span class=\"feixun_plug_flag_red\">"+response+"</span>");
         } else{
-            updateInfo("feixun_plug_asinType","<span class=\"feixun_plug_flag_green\">无</span>");
+            updateInfo("feixun_plug_asinType"+idSubfix,"<span class=\"feixun_plug_flag_green\">无</span>");
         }
         
-    });
+    },detailDoc);
 }
 
 function getBrandFromDetail(asin,callback){
@@ -1164,7 +1168,7 @@ function getBrandFromDetail(asin,callback){
         const parser = new DOMParser();  
         const doc = parser.parseFromString(html, 'text/html');  
         let brand = getBrand(doc) || getBrand2(doc) || getBrand3(doc);
-        callback(brand);
+        callback(brand,doc);
     });
 }
 
@@ -1172,7 +1176,7 @@ function parserToSerchListView(){
     let region = getRegion();
     const divs = document.querySelectorAll('.s-result-list div'); 
 
-
+    addStyle();
     
     divs.forEach(div => {  
         // 检查div是否包含data-asin属性  
@@ -1191,25 +1195,109 @@ function parserToSerchListView(){
                 const newDiv = document.createElement('div');  
         
                 // 设置新div的样式  
-                newDiv.style.padding = "10px"; 
-//                newDiv.style.backgroundColor = "#f7ddf5"; 
-	newDiv.style.backgroundColor ="#7EC0EE"; 
-                newDiv.style.zIndex = "1000"; 
                 newDiv.style.display = "inline-block";
-                // newDiv.style.float = "right";
+                newDiv.style.maxWidth = "700px";
                 newDiv.style.minWidth = "250px";
                 newDiv.style.textAlign = "left";
+                newDiv.style.padding = "10px"; 
+                newDiv.style.backgroundColor = "#e2effd"; 
+                newDiv.style.zIndex = "1000"; 
+                newDiv.className="feixun_plug_container";
 
-                newDiv.innerHTML = "<span id=\"feixun_plug_asin_"+asin+"\"><b>ASIN："+asin+"</b></span>\
-                                    <br/><span id=\"feixun_plug_region_"+asin+"\"><b>站点："+region+"</b></span>\
-                                    <br/><span id=\"feixun_plug_brand_"+asin+"\"><b>品牌：查询中...</b></span>\
-                                    <br/><span id=\"feixun_plug_brandState_"+asin+"\"><b>商标状态：查询中...</b></span>\
-                                    <br/><span id=\"feixun_plug_checkasin_"+asin+"\"><b>是否在库：查询中...</b></span>\
-                                    <br/><span id=\"feixun_plug_amount_"+asin+"\"><b>购物车：查询中...</b></span>\
-                                    <br/><span id=\"feixun_plug_totalFba_"+asin+"\"><b>FBA费用：查询中...</b></span>\
-                                    <br/><span id=\"feixun_plug_profitRate_"+asin+"\"><b>利润率：查询中...</b></span>";
+                newDiv.innerHTML = "\
+                                    <div class=\"feixun_plug_row feixun_plug_bottom_border\">\
+                                        <div class=\"feixun_plug_col-3\"><b>ASIN： </b><span id=\"feixun_plug_asin_"+asin+"\">查询中...</span>\
+                                        <svg class=\"icon\" id=\"feixun_plug_copy_asin_img_"+asin+"\" style=\"cursor: pointer;width: 2em;height: 2em;vertical-align: middle;fill: currentColor;overflow: hidden;\" viewBox=\"0 0 1024 1024\" version=\"1.1\" xmlns=\"http:\/\/www.w3.org\/2000\/svg\" p-id=\"3522\"><path d=\"M657 223H287c-22.1 0-40 17.9-40 40v418c0 22.1 17.9 40 40 40h370c22.1 0 40-17.9 40-40V263c0-22.1-17.9-40-40-40z m10 448c0 11-9 20-20 20H297c-11 0-20-9-20-20V273c0-11 9-20 20-20h350c11 0 20 9 20 20v398z\" fill=\"#333333\" p-id=\"3523\"><\/path><path d=\"M747 353.8V751c0 11-9 20-20 20H387.8c-6.5 0-12.2 4.1-14.2 10.3-3.2 9.7 4 19.7 14.2 19.7H737c22.1 0 40-17.9 40-40V353.8c0-10.2-10-17.5-19.7-14.2-6.2 2-10.3 7.8-10.3 14.2zM582 384H362c-8.3 0-15-6.7-15-15s6.7-15 15-15h220c8.3 0 15 6.7 15 15s-6.7 15-15 15zM582 482H362c-8.3 0-15-6.7-15-15s6.7-15 15-15h220c8.3 0 15 6.7 15 15s-6.7 15-15 15zM527.7 580H362c-8.3 0-15-6.7-15-15s6.7-15 15-15h165.7c8.3 0 15 6.7 15 15s-6.8 15-15 15z\" fill=\"#333333\" p-id=\"3524\"><\/path><\/svg>\
+                                        </div>\
+                                        <div class=\"feixun_plug_col-3 feixun_plug_text\" style=\"display:flex;\"><b>卖家：</b><span id=\"feixun_plug_soldBy_"+asin+"\"><span/></div>\
+                                        <div class=\"feixun_plug_col-3\" ><b>配送：</b><span id=\"feixun_plug_ShipsFrom_"+asin+"\"></span></div>\
+                                        <div class=\"feixun_plug_col-3\" ><b>卖家数：</b><span id=\"feixun_plug_soldByNumber_"+asin+"\"></span>\
+                                        </div>\
+                                        <div class=\"feixun_plug_col-3\" style=\"padding:0px;\">\
+                                        <img style=\"width: 27px;height: 27px;cursor: pointer;\" id=\"feixun_plug_refresh_img_"+asin+"\"\
+                                        src=\""+"data:image/png;base64,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"+"\">\
+                                        </div>\
+                                    </div>\
+                                    <div class=\"feixun_plug_row\">\
+                                        <div class=\"feixun_plug_col-6\" ><b>排名：</b>\
+                                        <span id=\"feixun_plug_rank_"+asin+"\">**</span> in <b><span id=\"feixun_plug_category_"+asin+"\"></span></b>\
+                                        </div>\
+                                        <div class=\"feixun_plug_col-6\"><b>评分：</b><span id=\"feixun_plug_ReviewNumber_"+asin+"\"></span></div>\
+                                    </div>\
+                                    <div class=\"feixun_plug_row feixun_plug_bottom_border\">\
+                                        <div class=\"feixun_plug_col-6\"><b>品牌：</b><span id=\"feixun_plug_brand_"+asin+"\"></span>&nbsp;<span id=\"feixun_plug_brandState_"+asin+"\"></span>\
+                                        <svg class=\"icon\" id=\"feixun_plug_copy_brand_img_"+asin+"\" style=\"cursor: pointer;width: 2em;height: 2em;vertical-align: middle;fill: currentColor;overflow: hidden;\" viewBox=\"0 0 1024 1024\" version=\"1.1\" xmlns=\"http:\/\/www.w3.org\/2000\/svg\" p-id=\"3522\"><path d=\"M657 223H287c-22.1 0-40 17.9-40 40v418c0 22.1 17.9 40 40 40h370c22.1 0 40-17.9 40-40V263c0-22.1-17.9-40-40-40z m10 448c0 11-9 20-20 20H297c-11 0-20-9-20-20V273c0-11 9-20 20-20h350c11 0 20 9 20 20v398z\" fill=\"#333333\" p-id=\"3523\"><\/path><path d=\"M747 353.8V751c0 11-9 20-20 20H387.8c-6.5 0-12.2 4.1-14.2 10.3-3.2 9.7 4 19.7 14.2 19.7H737c22.1 0 40-17.9 40-40V353.8c0-10.2-10-17.5-19.7-14.2-6.2 2-10.3 7.8-10.3 14.2zM582 384H362c-8.3 0-15-6.7-15-15s6.7-15 15-15h220c8.3 0 15 6.7 15 15s-6.7 15-15 15zM582 482H362c-8.3 0-15-6.7-15-15s6.7-15 15-15h220c8.3 0 15 6.7 15 15s-6.7 15-15 15zM527.7 580H362c-8.3 0-15-6.7-15-15s6.7-15 15-15h165.7c8.3 0 15 6.7 15 15s-6.8 15-15 15z\" fill=\"#333333\" p-id=\"3524\"><\/path><\/svg>\
+                                        </div>\
+                                        <div class=\"feixun_plug_col-6\"><b>是否在库：</b><span id=\"feixun_plug_checkasin_"+asin+"\"></span></div>\
+                                    </div>\
+                                    <div class=\"feixun_plug_row\">\
+                                        <div class=\"feixun_plug_col-3\"><b>FBA费用：</b><span id=\"feixun_plug_totalFba_"+asin+"\"></span></div>\
+                                        <div class=\"feixun_plug_col-3\"><b>重量：</b><span id=\"feixun_plug_weight_"+asin+"\"></span></div>\
+                                        <div class=\"feixun_plug_col-3\"><b>利润率：</b><span id=\"feixun_plug_profitRate_"+asin+"\"></span></div>\
+                                        <div class=\"feixun_plug_col-3\"><b>购物车：</b><span id=\"feixun_plug_amount_"+asin+"\"></span></div>\
+                                    </div>\
+                                    <div class=\"feixun_plug_row\">\
+                                        <div class=\"feixun_plug_col-6\" ><b>上架时间：</b><span id=\"feixun_plug_AvailableDate_"+asin+"\"></span></div>\
+                                        <div class=\"feixun_plug_col-6\" ><b>ASIN类型：</b><span id=\"feixun_plug_asinType_"+asin+"\"></span></div>\
+                                    </div>";
+
                 declarativeSpan.appendChild(newDiv); 
 
+
+                const svgElement = document.getElementById('feixun_plug_copy_asin_img_'+asin);
+
+                // 为 SVG 元素添加点击事件监听
+                svgElement.addEventListener('click', function() {
+                    // 在这里添加点击后的处理逻辑
+                    FXLog('SVG 元素被点击了');
+                    copyById("feixun_plug_asin_"+asin);
+                });
+
+                const copyBrandElement = document.getElementById('feixun_plug_copy_brand_img_'+asin);
+
+                // 为 SVG 元素添加点击事件监听
+                copyBrandElement.addEventListener('click', function() {
+                    // 在这里添加点击后的处理逻辑
+                    FXLog('SVG 元素被点击了');
+                    copyById("feixun_plug_brand_"+asin);
+                });
+
+                const refreshBtn = document.getElementById('feixun_plug_refresh_img_'+asin);
+                refreshBtn.addEventListener('click', function() {
+                    updateInfo("feixun_plug_brandState_"+asin,"查询中");
+                    updateInfo("feixun_plug_amount_"+asin,"查询中");
+                    updateInfo("feixun_plug_totalFba_"+asin,"查询中");
+                    updateInfo("feixun_plug_profitRate_"+asin,"查询中");
+                    updateInfo("feixun_plug_checkasin_"+asin,"查询中");
+
+                    refreshBtn.classList.add('rotating');
+                    refreshBtn.addEventListener('animationend', function() {
+                        refreshBtn.classList.remove('rotating');
+                    }, {once: true});
+
+                    chrome.storage.sync.get('feixunUserConfig', function(userConfig) { 
+                        window.feixunUserConfig = userConfig?userConfig.feixunUserConfig:{
+                            useWipoSwitch: "use",
+                            shipsFromTypes: ['FBA','FBM','AMZ'],
+                            soldByNumber: 8,
+                            categoryRank: 50000,
+                            amount: 10,
+                            profitRate: 45,
+                            reviewNumber: 3,
+                        };
+                        getBrandFromDetail(asin, (brand,detailDoc)=>{
+                            renderProductInfo(brand,region,asin,true,detailDoc);
+                        });
+                    });
+
+                });
+
+                getBrandFromDetail(asin, (brand,detailDoc)=>{
+                    renderProductInfo(brand,region,asin,true,detailDoc);
+                });
+
+
+/*
                 checkAsin(asin,(response)=>{
                     if (response && response.code == 0) {
                         updateInfo("feixun_plug_checkasin_"+response.asin,"<b>是否在库：<b/><span style=\"color:#ff0000\">已存在</span>");
@@ -1263,7 +1351,7 @@ function parserToSerchListView(){
                        updateInfo("feixun_plug_brandState_"+asin,"<b>商标状态:</b>"+state);
                    });
                 });
-                
+                */
             }  
         }  
     }); 
