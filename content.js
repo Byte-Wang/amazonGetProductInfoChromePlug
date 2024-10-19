@@ -59,25 +59,25 @@ function getASIN() {
 
 function checkBrandOld(brand,callback){
     chrome.storage.sync.get('userInfo', function(result) {
-        console.log("[test] 获取用户信息：",result);
+        FXLog("[test] 获取用户信息：",result);
         const userInfo = result.userInfo;
         if (!userInfo || !userInfo.token) {
-            console.log("[test] 没有token，未登录：");
+            FXLog("[test] 没有token，未登录：");
             callback({desc: "请先登录！"});
             return;
         }
         let region = getRegion();
-        console.log("[test] 当前区域："+region);
+        FXLog("[test] 当前区域："+region);
         if (region == "au" || region == 'ca' || region == 'uk'|| region == 'jp') {
-            console.log("[test] 查询品牌注册情况");
-            let url = 'http://www.jyxwl.cn/index.php/admin/index/checkBrandName?version=20240727161055&brand='+encodeURIComponent(brand)+'&region='+region;
+            FXLog("[test] 查询品牌注册情况");
+            let url = 'http://www.jyxwl.cn/index.php/admin/index/checkBrandName?version=' + window.feixunPlugVersion + '&brand='+encodeURIComponent(brand)+'&region='+region;
             chrome.runtime.sendMessage({
                 action: "makeCorsRequest",
                 url: url,
                 token: userInfo.token,
                 data: {}
             },(response)=> {
-                console.log("[test] 品牌注册情况：",response);
+                FXLog("[test] 品牌注册情况：",response);
                 if (response.code == 1 && response.data.code == 200) {
                     callback({
                         count: response.data.count,
@@ -101,27 +101,56 @@ function checkBrand(brand,callback){
     }
 }
 
+function checkBrandWithAll(brand, callback){
+    let result = {
+        trademarkOffice: null,
+        wipo: null,
+    };
+
+    FXLog("查询品牌状态， 开始：",brand)
+    let checkBoth = ()=>{
+        if (result.wipo != null && result.trademarkOffice != null) {
+            FXLog("查询品牌状态，两个渠道都查询完成， result：",result)
+            callback(result);
+        }
+    };
+
+    checkBrandByWipo(brand,(data)=>{
+        FXLog("查询品牌状态，wipo查询完成， result：",data)
+        result.wipo = data ? data : {};
+        checkBoth();
+    });
+
+    checkBrandOld(brand,(data)=>{
+        FXLog("查询品牌状态，商标局查询完成， result：",data)
+        result.trademarkOffice = data ? data : {};
+        checkBoth();
+    });
+
+    
+}
+
 function checkBrandByWipo(brand,callback){
     chrome.storage.sync.get('userInfo', function(result) {
-        console.log("[test] 获取用户信息：",result);
+        FXLog("[test] 获取用户信息：",result);
         const userInfo = result.userInfo;
         if (!userInfo || !userInfo.token) {
-            console.log("[test] 没有token，未登录：");
+            FXLog("[test] 没有token，未登录：");
             callback({desc: "请先登录！"});
             return;
         }
         let region = getRegion();
-        console.log("[test] 当前区域："+region);
+        FXLog("[test] 当前区域："+region);
         if (region == "au" || region == 'ca' || region == 'uk'|| region == 'jp') {
-            console.log("[test] 查询品牌注册情况");
-            let url = 'http://www.jyxwl.cn/index.php/admin/index/checkBrand?version=20240727161055&brand='+encodeURIComponent(brand)+'&region='+region;
+            FXLog("[test] 查询品牌注册情况");
+            let url = 'http://www.jyxwl.cn/index.php/admin/index/checkBrand?version=' + window.feixunPlugVersion + '&brand='+encodeURIComponent(brand)+'&region='+region;
             chrome.runtime.sendMessage({
                 action: "makeCorsRequest",
                 url: url,
                 token: userInfo.token,
                 data: {}
             },(response)=> {
-                console.log("[test] 品牌注册情况：",response);
+                FXLog("[test] 品牌注册情况：",response);
                 if (response.code == 1 && response.data.code == 200) {
                     let result = response.data.result;
                     let searchKey = result.hashsearch;
@@ -137,7 +166,7 @@ function checkBrandByWipo(brand,callback){
                     }
 
                     let resultObj = JSON.parse(resultStr)
-                    console.log("[test] 查询品牌注册情况，解析后：",resultObj);
+                    FXLog("[test] 查询品牌注册情况，解析后：",resultObj);
                     
                     if (resultObj && resultObj.response) {
                         callback({
@@ -158,15 +187,15 @@ function checkBrandByWipo(brand,callback){
 
 function checkAsin(asin,callback){
     chrome.storage.sync.get('userInfo', function(result) {
-        console.log("[test] 获取用户信息：",result);
+        FXLog("[test] 获取用户信息：",result);
         const userInfo = result.userInfo;
         if (!userInfo || !userInfo.token) {
-            console.log("[test] 没有token，未登录：");
+            FXLog("[test] 没有token，未登录：");
             callback({desc: "请先登录！"});
             return;
         }
         let region = getRegion();
-        console.log("[test] 当前区域："+region);
+        FXLog("[test] 当前区域："+region);
         let stationId = '0';
 
         if (region == "au") {
@@ -179,7 +208,7 @@ function checkAsin(asin,callback){
             stationId = '9';
         }
         if (stationId != '0') {
-            console.log("[test] 调用checkasin请求");
+            FXLog("[test] 调用checkasin请求");
             let url = 'http://www.jyxwl.cn/index.php/admin/product/checkAsin';
             chrome.runtime.sendMessage({
                 action: "makePOSTRequest",
@@ -187,10 +216,11 @@ function checkAsin(asin,callback){
                 token: userInfo.token,
                 data: {
                     'asin': asin,
-                    'station_id': stationId
+                    'station_id': stationId,
+                    'version': window.feixunPlugVersion
                 }
             },(response)=> {
-                console.log("[test]  checkasin:",response);
+                FXLog("[test]  checkasin:",response);
                 response.asin = asin;
                 callback(response);
             });
@@ -202,25 +232,25 @@ function checkAsin(asin,callback){
 
 function getFBA(asin, callback) {
     chrome.storage.sync.get('userInfo', function(result) {
-        console.log("[test] 获取用户信息：",result);
+        FXLog("[test] 获取用户信息：",result);
         const userInfo = result.userInfo;
         if (!userInfo || !userInfo.token) {
-            console.log("[test] 没有token，未登录：");
+            FXLog("[test] 没有token，未登录：");
             callback({desc: "请先登录！"});
             return;
         }
         let region = getRegion();
-        console.log("[test] 当前区域："+region);
+        FXLog("[test] 当前区域："+region);
 
-        console.log("[test] 调用getFba请求");
-        let url = 'http://www.jyxwl.cn/index.php/admin/index/getFBA?region='+region+'&asin='+asin;
+        FXLog("[test] 调用getFba请求");
+        let url = 'http://www.jyxwl.cn/index.php/admin/index/getFBA?version=' + window.feixunPlugVersion + '&region='+region+'&asin='+asin;
         chrome.runtime.sendMessage({
             action: "makeCorsRequest",
             url: url,
             token: userInfo.token,
             data: {}
         },(response)=> {
-            console.log("[test] 调用getFba请求结果",response);
+            FXLog("[test] 调用getFba请求结果",response);
             if (response.code == 1 && response.data.code == 200 && response.data.result.status == 1) {
                 let content = response.data.result.content;
                 let cost = (content.fbaFee+content.storageFee+content.referralFee).toFixed(2); // 成本：亚马逊运费+亚马逊仓储费+亚马逊佣金
@@ -439,13 +469,13 @@ function getSoldByNumber(callback) {
     spans.forEach(span => {  
         // 检查span的文本内容是否符合条件  
         const text = span.textContent.trim();  
-        console.log("[test] getSoldByNumber, 找到元素："+text)
+        FXLog("[test] getSoldByNumber, 找到元素："+text)
         if (text.startsWith('New') && text.includes('(') && text.includes(')')) {  
             // 提取括号内的内容  
             const match = text.match(/\((\d+)\)/);  
             if (match) {  
                 // 如果找到匹配项，match[1]就是括号内的数字  
-                console.log('找到的数字是:', match[1]);  
+                FXLog('找到的数字是:', match[1]);  
                 findNumber = match[1];
             }
         }
@@ -467,7 +497,7 @@ function getShipsFrom(callback) {
     spans.forEach(span => {  
         // 检查span的文本内容是否符合条件  
         const text = span.textContent.trim();  
-        console.log("[test] getShipsFrom, 找到元素："+text)
+        FXLog("[test] getShipsFrom, 找到元素："+text)
         if (text == "Amazon" || text == "Amazon " + brand ) {  
             ShipsFrom = `FBA(${text})`;
         } else if (text.indexOf('Amazon') != -1) {  
@@ -492,17 +522,18 @@ function getBestSellersRank(callback){
         const spans = container.querySelectorAll('span');  
         spans.forEach(span => {  
             // 检查span的文本内容是否符合条件  
-            const text = span.textContent.trim();  
+            const text = span.textContent.trim().replace(",","");
+            // FXLog("尝试解析排名："+text);
             // 正则表达式提取排名  
             let rankRegex = /Rank:\s*(\d+)(?=\sin)/;  
             let rankMatch = text.match(rankRegex);  
             let rank = rankMatch ? rankMatch[1] : null; // 匹配到的第一个捕获组即为排名  
-            
+            // FXLog("rankMatch：",rankMatch);
             // 正则表达式提取分类名  
             let categoryRegex = /Best Sellers Rank:[^(]*\bin\s+([^()]+)/;  
             let categoryMatch = text.match(categoryRegex);  
             let category = categoryMatch ? categoryMatch[1] : null; // 匹配到的第一个捕获组即为分类名  
-            
+            // FXLog("categoryMatch:",categoryMatch);
             if (rank && category && !finded) {
                 finded = true;
                 result = {
@@ -527,8 +558,9 @@ function getBestSellersRank2(callback){
         rank: "",
         category: ""
     };
+    let finded = false;
     let BestSellersRank = getTableValueByTitle("productDetails_detailBullets_sections1","Best Sellers Rank");
-    console.log("[test] getBestSellersRank2: "+BestSellersRank);
+    FXLog("[test] getBestSellersRank2: "+BestSellersRank);
     if (BestSellersRank) {
         // 移除 (See Top ...) 部分  
         let cleanedStr = BestSellersRank.replace(/\(See Top \d+ in [^)]*\)/g, '');  
@@ -551,13 +583,62 @@ function getBestSellersRank2(callback){
             });  
         }  
 
-        console.log("[test] getBestSellersRank2",allRanks);
+        FXLog("[test] getBestSellersRank2",allRanks);
 
         if (allRanks.length >= 1 && allRanks[0].rank && allRanks[0].category) {
             result = allRanks[0];
+            finded = true;
         }
     }
 
+    if (finded) {
+        callback(result);
+    } else {
+        getBestSellersRank3(callback);
+    }
+}
+
+function getBestSellersRank3(callback){
+    let result = {
+        rank: "",
+        category: ""
+    };
+    const productDetail = document.getElementById("productDetails_expanderTables_depthLeftSections");
+    if (productDetail) {
+        const tables = productDetail.querySelectorAll('table');
+        tables.forEach(table => {
+            for (var i = 0; i < table.rows.length; i++) {  
+                var row = table.rows[i];  
+                // 获取当前行的标题单元格  
+                var th = row.cells[0];  
+                // 检查标题是否匹配  
+                if (th && th.textContent.indexOf("Best Sellers Rank") != -1) {  
+                    // 如果匹配，返回对应的值单元格的内容  
+                    const textContent = row.cells[1].textContent.trim().replace(/(\d),(\d)/g, '$1$2');  
+                    let regex = /(\d+)\s+in\s(.*?)(?=\s+\d+|$)/g;  
+
+                    let matches;  
+                    
+                    let allRanks = [];  
+                    while ((matches = regex.exec(textContent)) !== null) {  
+                        // matches[1] 是排名（可能包含逗号），matches[2] 是类目  
+                        allRanks.push({  
+                            rank: matches[1].replace(/,/g, ''), // 如果需要，这里可以移除逗号  
+                            category: matches[2]  
+                        });  
+                    }  
+
+                    FXLog("[test] getBestSellersRank2",allRanks);
+
+                    if (allRanks.length >= 1 && allRanks[0].rank && allRanks[0].category) {
+                        result = allRanks[0];
+                        finded = true;
+                    }
+                }  
+            }  
+        });
+
+    }
     callback(result);
 }
 
@@ -571,6 +652,7 @@ function getSizeInfo(callback){
     };
 
     const container = document.getElementById('detailBullets_feature_div');  
+    FXLog("获取到产品详情对象：",container);
     if (!container) {
         getSizeInfo2(callback);
         return;
@@ -580,9 +662,10 @@ function getSizeInfo(callback){
     let finded = false;
     spans.forEach(span => {  
         const trimmedStr = span.textContent.trim();
+        FXLog("尝试解析尺寸重量：",trimmedStr);
         const regex = /Package Dimensions.*?:.*?(\d.*?);(.*)$/s;   
         const match = trimmedStr.match(regex);  
-
+        FXLog("解析结果：",match);
         if (match) {
             const dimensions = match[1].trim();  
             const weight = match[2].trim();  
@@ -600,6 +683,7 @@ function getSizeInfo(callback){
     if (finded) {
         callback(result);
     } else {
+        FXLog("每获取到尺寸信息，尝试方法2");
         getSizeInfo2(callback);
     }
 }
@@ -610,6 +694,7 @@ function getSizeInfo2(callback){
         weight: ""
     };
     let sizeInfo = getTableValueByTitle("productDetails_techSpec_section_1","Package Dimensions");
+    FXLog("从表格获取尺寸信息：",sizeInfo);
     if (sizeInfo) {
         let sizeInfoArr = sizeInfo.split(";");
         if (sizeInfoArr && sizeInfoArr.length == 2) {
@@ -617,10 +702,12 @@ function getSizeInfo2(callback){
                 size: sizeInfoArr[0],
                 weight: sizeInfoArr[1]
             };
+            FXLog("获取成功：",result);
             callback(result);
             return;
         }
     }
+    FXLog("获取失败：",result);
     callback(result);
 }
 
@@ -629,7 +716,10 @@ function getSizeInfo2(callback){
 // 定义一个函数来查找并返回指定标题的值  
 function getTableValueByTitle(tableId, title) {  
     // 获取表格元素  
-    var table = document.getElementById(tableId);  
+    var table = document.getElementById(tableId); 
+    if (!table) {
+        return null;
+    } 
     // 遍历表格的所有行  
     for (var i = 0; i < table.rows.length; i++) {  
         var row = table.rows[i];  
@@ -645,18 +735,36 @@ function getTableValueByTitle(tableId, title) {
     return null;  
 }  
 
+function FXLog(...args) {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // 注意月份是从0开始的
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
+  
+    const datatime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+
+    console.log(`[${datatime}][feixunLog]`,...args);
+}
+
 function getAvailableDate(callback){
     let result = "";
     let finded = false;
     const container = document.getElementById('detailBullets_feature_div');  
+    FXLog("获取时间对象", container);
     if (container) {
         // 使用querySelectorAll查找所有span元素，然后遍历它们  
         const spans = container.querySelectorAll('span');  
         
         spans.forEach(span => {  
             const trimmedStr = span.textContent.trim();
+            FXLog("尝试解析时间", trimmedStr);
             const regex = /Date First Available.*?:(.*)$/s;   
             const match = trimmedStr.match(regex);  
+            FXLog("解析结果", match);
             if (match) {
                 let date = match[1].trim();  
                 date = date.replace(/\/n/g, "");
@@ -764,13 +872,13 @@ function parserToTitleFeatureDiv(retryTimes){
     let region = getRegion();
     let brand = getBrand() || getBrand2() || getBrand3();
     if (brand == null && retryTimes > 0) {
-        console.log("[test] 查不到品牌，3s后重试");
+        FXLog("[test] 查不到品牌，3s后重试");
         setTimeout(() => {
             parserToTitleFeatureDiv(retryTimes - 1);
         },3);
         return;
     }
-    console.log("[test]当前品牌："+brand);
+    FXLog("[test]当前品牌："+brand);
 
     showInfo("\
         <div class=\"feixun_plug_row feixun_plug_bottom_border\">\
@@ -817,7 +925,7 @@ function parserToTitleFeatureDiv(retryTimes){
     // 为 SVG 元素添加点击事件监听
     svgElement.addEventListener('click', function() {
         // 在这里添加点击后的处理逻辑
-        console.log('SVG 元素被点击了');
+        FXLog('SVG 元素被点击了');
         const container = document.getElementById("feixun_plug_asin");
         if (container && container.textContent) {
             const tempTextarea = document.createElement('textarea');
@@ -835,7 +943,7 @@ function parserToTitleFeatureDiv(retryTimes){
     // 为 SVG 元素添加点击事件监听
     copyBrandElement.addEventListener('click', function() {
         // 在这里添加点击后的处理逻辑
-        console.log('SVG 元素被点击了');
+        FXLog('SVG 元素被点击了');
         const container = document.getElementById("feixun_plug_brand");
         if (container && container.textContent) {
             const tempTextarea = document.createElement('textarea');
@@ -893,22 +1001,46 @@ function renderProductInfo(brand,region){
         }
 
         updateInfo("feixun_plug_brand","<a href='"+brandListUrl+"' target=\"_blank\">"+brand+"<a/>");
-        checkBrand(brand,(data)=>{
-            console.log("[test]查询品牌结果：",data);
-            let state = "查询失败";
-            if (data.count != undefined) {
-                if (data.count > 0) {
-                    state = "<span class=\"feixun_plug_flag_red\">已注册"+"（"+data.from + data.count+")</span>";
+        checkBrandWithAll(brand,(data)=>{
+            FXLog("[test]查询品牌结果：",data);
+            
+            let state = "";
+            let SY = "",SN = "",WY = "",WN = "";
+            if (data.trademarkOffice.count != undefined) {
+                if (data.trademarkOffice.count > 0) {
+                    SY = "<span class=\"feixun_plug_flag_red\">已注册"+"（T:" + data.trademarkOffice.count+")</span>";
                 } else {
-                    state = "<span class=\"feixun_plug_flag_green\">未注册</span>";
+                    SN = "<span class=\"feixun_plug_flag_green\">未注册（T:0）</span>";
                 }
-            } else if (data.desc) {
-                state = data.desc;
-            } else if (data.data.desc) {
-                state = data.data.desc;
-            } else if (data.msg) {
-                state = data.msg;
             }
+            if (data.wipo.count != undefined) {
+                if (data.wipo.count > 0) {
+                    WY = "<span class=\"feixun_plug_flag_red\">已注册"+"（G:" + data.wipo.count+")</span>";
+                } else {
+                    WN = "<span class=\"feixun_plug_flag_green\">未注册（G:0）</span>";
+                }
+            }
+
+            if (window.feixunUserConfig.useWipoSwitch == 'use') {
+                if (SY != "" || SN != "" || WY != "" || WN != "") {
+                    state = SY + SN + WY + WN;
+                } else {
+                    state = "查询失败";
+                }
+            } else {
+                if (SY != "") {
+                    state = SY;
+                } else if (WY != "") {
+                    state = WY;
+                } else if (SN != "") {
+                    state = SN
+                } else if (WN != "") {
+                    state = WN
+                } else {
+                    state = "查询失败";
+                }
+            }
+
             updateInfo("feixun_plug_brandState",state);
         });
     } else {
@@ -919,7 +1051,7 @@ function renderProductInfo(brand,region){
 
     const asin = getASIN()
     if (asin) {
-        console.log("[test]222");
+        FXLog("[test]222");
         updateInfo("feixun_plug_asin",asin);
         checkAsin(asin,(response)=>{
             if (response && response.code == 0) {
@@ -1046,7 +1178,7 @@ function parserToSerchListView(){
         // 检查div是否包含data-asin属性  
         if (div.hasAttribute('data-asin') && div.getAttribute('data-asin').trim() !== '') {  
             const asin = div.getAttribute('data-asin');
-            console.log("[test] 查询到asin："+asin);
+            FXLog("[test] 查询到asin："+asin);
 
             const declarativeSpan = div.querySelector('.a-section');  
             const puisgRow = div.querySelector('.puisg-row');  
@@ -1113,7 +1245,7 @@ function parserToSerchListView(){
                    updateInfo("feixun_plug_brand_"+asin, "<b>品牌:</b>"+brand);
 
                    checkBrand(brand,(data)=>{
-                       console.log("[test] 查询到"+asin+"品牌注册情况：",data);
+                       FXLog("[test] 查询到"+asin+"品牌注册情况：",data);
                        let state = "查询失败";
                        if (data.count != undefined) {
                            if (data.count > 0) {
@@ -1149,6 +1281,7 @@ function mainAction(){
             profitRate: 45,
             reviewNumber: 3,
         };
+        window.feixunPlugVersion = "20240727161055";
 
         if (hasTitleFeatureDiv()) {
             parserToTitleFeatureDiv(3);
@@ -1156,9 +1289,9 @@ function mainAction(){
             parserToSerchListView();
             let curHref = window.location.href;
             setInterval(() => {
-                console.log("[test] 检测是否翻页");
+                FXLog("[test] 检测是否翻页");
                 if (curHref != window.location.href) {
-                    console.log("[test] 翻页了，重新获取数据");
+                    FXLog("[test] 翻页了，重新获取数据");
                     setTimeout(() => {
                         parserToSerchListView();
                     }, 2000);
@@ -1166,7 +1299,7 @@ function mainAction(){
                 }
             }, 2000);
         } else {
-            console.log("[test] 未知页面");
+            FXLog("[test] 未知页面");
         }
     });
     
