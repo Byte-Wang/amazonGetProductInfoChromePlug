@@ -56,7 +56,7 @@ function getASIN() {
     return null;  
 }  
 
-function checkVersionIsAvalible(callback){
+function checkVersionIsAvalible(callback,retryTimes = 3){
     chrome.storage.sync.get('userInfo', function(result) {
         FXLog("[test] 获取用户信息：",result);
         const userInfo = result.userInfo;
@@ -75,7 +75,14 @@ function checkVersionIsAvalible(callback){
             data: {}
         },(response)=> {
             FXLog("[test] 插件可用状态：",response);
-            callback(response);
+            if (response && response.data && response.data.code == 200) {
+                callback(response);
+            } else if (retryTimes > 0) {
+                checkVersionIsAvalible(callback, retryTimes - 1);
+            } else {
+                callback(response);
+            }
+             
         });
 
     });
@@ -320,9 +327,11 @@ function addStyle(){
         width: 100%;  \
         max-width: 1200px;\
         margin: 0 auto;  \
-        padding: 0 15px; \
+        padding: 10px; \
         font-size: 12px;\
         border: 1px solid #d6d5d5;\
+        position: relative;\
+        background: #e2effd;\
         }\
         .feixun_plug_row_old {\
         display: flex;  \
@@ -399,6 +408,17 @@ function addStyle(){
         box-sizing: border-box; \
         line-height: 30px;\
         }\
+        .feixun_plug_mask{\
+            position: absolute;\
+            background: rgba(0, 0, 0, 0.7);\
+            left: 0;\
+            top: 0;\
+            bottom: 0;\
+            right: 0;\
+            text-align: center;\
+            padding: 20px;\
+            color: #fff;\
+        }\
         @media (min-width: 576px) {  \
         .feixun_plug_col-11 { flex: 0 0 8.333333%; max-width: 8.333333%; }  \
         .feixun_plug_col-21 { flex: 0 0 16.666667%; max-width: 16.666667%; }  \
@@ -460,6 +480,7 @@ function getMainContentView(asin = "") {
                                     <div class=\"feixun_plug_row\">\
                                         <div class=\"feixun_plug_col-6\" ><b>上架时间：</b><span id=\"feixun_plug_AvailableDate"+idSubfix+"\"></span></div>\
                                         <div class=\"feixun_plug_col-6\" ><b>ASIN类型：</b><span id=\"feixun_plug_asinType"+idSubfix+"\"></span></div>\
+                                        <div class=\"feixun_plug_col-6\" ><b>评论状态：</b><span id=\"feixun_plug_reviewType"+idSubfix+"\"></span></div>\
                                     </div>";
     return contentView;
 }
@@ -469,9 +490,6 @@ function showInfo(info){
 
     let newDiv = document.createElement("div");  
     
-    newDiv.style.padding = "10px"; 
-    newDiv.style.backgroundColor = "#e2effd"; 
-    newDiv.style.zIndex = "1000"; 
     newDiv.className="feixun_plug_container";
     
     newDiv.innerHTML = info;  
@@ -941,6 +959,40 @@ function getAsinType(callback,doc = document){
     }
 }
 
+function getReviewType(callback,doc = document){
+    const reviewHeader = doc.getElementById("cm-cr-dp-review-header");
+    let reviewType = "";
+    if (reviewHeader) {
+        const spans = reviewHeader.querySelectorAll('span');
+        spans.forEach(span => {
+            if (span.textContent.indexOf("No customer reviews") != -1) {
+                reviewType = "无评论"; // 无评论
+            }
+        });
+    }
+
+    if (reviewType == "") {
+        const reviewMessage = doc.getElementById("cm-cr-dp-no-reviews-message");
+        if (reviewMessage) {
+            const divs = reviewMessage.querySelectorAll('div');
+            divs.forEach(div => {
+                if (div.textContent.indexOf("There are 0 reviews") != -1) {
+                    reviewType = "无评论有评分"; // 无评论
+                }
+            });
+        }
+    }
+
+    if (reviewType == "") {
+        const reviewList = doc.getElementById("cm-cr-dp-review-list");
+        if (reviewList) {
+            reviewType = "有评论"; // 无评论
+        }
+    }
+
+    callback(reviewType);
+}
+
 function getMerchantID(doc = document){
     const container = doc.getElementById('merchantID');
     if(container){ 
@@ -1192,6 +1244,10 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc){
         }
         
     },detailDoc);
+
+    getReviewType((response)=>{
+        updateInfo("feixun_plug_reviewType"+idSubfix,response);
+    },detailDoc);
 }
 
 function getBrandFromDetail(asin,callback){
@@ -1396,25 +1452,46 @@ function mainAction(){
             FXLog("[test] 未知页面");
         }
 
-        checkVersionIsAvalible((res)=>{
-            if (res && res.data && res.data.code == 200) {
-
-            } else {
-               const mainContentViews = document.getElementsByClassName("feixun_plug_container");
-               for (let i = 0; i < mainContentViews.length; i++) {
-                    const element = mainContentViews[i];
-                    let state = "接口请求异常";
-                    if (res && res.data && res.data.desc) {
-                        state = res.data.desc;
-                    } else if (res && res.desc) {
-                        state = res.desc;
-                    } else if (res && res.msg) {
-                        state = res.msg;
-                    }
-                    element.innerHTML = "<h3>"+state+"</h3>";
+        chrome.storage.sync.get('feixunplugchecktime',function(feixunplugchecktime){
+            if (feixunplugchecktime && feixunplugchecktime.feixunplugchecktime) { 
+                const tenMinutesInMilliseconds = 60 * 60 * 1000;
+                const currentTime = Date.now();
+                const timeDifference = currentTime - feixunplugchecktime.feixunplugchecktime;
+                if (timeDifference < tenMinutesInMilliseconds) {
+                    return;
                 }
             }
+            checkVersionIsAvalible((res)=>{
+                if (res && res.data && res.data.code == 200) {
+                    chrome.storage.sync.set({'feixunplugchecktime': Date.now()},function (res) {
+                        console.log('校验时间保存成功',res);
+                    });
+                } else {
+                    chrome.storage.sync.set({'feixunplugchecktime': 0},function () {
+    
+                    });
+                   const mainContentViews = document.getElementsByClassName("feixun_plug_container");
+                   for (let i = 0; i < mainContentViews.length; i++) {
+                        const element = mainContentViews[i];
+                        let state = "接口请求异常";
+                        if (res && res.data && res.data.desc) {
+                            state = res.data.desc;
+                        } else if (res && res.desc) {
+                            state = res.desc;
+                        } else if (res && res.msg) {
+                            state = res.msg;
+                        }
+    
+                        const maskView = document.createElement('div');
+                        maskView.className="feixun_plug_mask";
+                        maskView.innerHTML = "<h2 style=\"color:#fff;\">" + state + "</h2>";
+    
+                        element.appendChild(maskView);
+                    }
+                }
+            });
         });
+        
     });
     
 }

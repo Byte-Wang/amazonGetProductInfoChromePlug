@@ -1,6 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {  
+    chrome.storage.sync.get('loginInfo', function(loginInfoResult) { 
+        console.log('获取登录信息：',loginInfoResult.loginInfo); 
+        const loginInfo = loginInfoResult.loginInfo;
     chrome.storage.sync.get('userInfo', function(result) { 
-        console.log('获取登录信息：',result.userInfo); 
+        console.log('获取用户信息：',result.userInfo); 
         chrome.storage.sync.get('feixunUserConfig', function(userConfig) { 
         
             userConfig = userConfig.feixunUserConfig;
@@ -134,7 +137,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div> 
                 `;  
 
-                
+                if (loginInfo && loginInfo.username &&  loginInfo.password) {
+                    document.getElementById("username").value = loginInfo.username;
+                    document.getElementById("password").value = loginInfo.password;
+                }
 
                 var loginButton = document.getElementById('loginButton');  
                 loginButton.addEventListener('click', function() {  
@@ -145,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-
+    });
 });
 
 function feixunShowToast(content) {
@@ -230,6 +236,9 @@ function login(captchaId) {
             chrome.storage.sync.set({'userInfo': data.data.userinfo}, function() {  
                 console.log('保存成功');  
                 location.reload();
+            });  
+            chrome.storage.sync.set({'loginInfo': {"username":username,"password":password}}, function() {  
+                console.log('保存成功');  
             });  
             // 可以在这里处理登录成功后的逻辑，如关闭弹窗  
         } else {  
