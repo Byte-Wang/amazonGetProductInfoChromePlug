@@ -122,21 +122,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 //     }  
                 // });  
             } else {
-                // 如果未登录，显示登录框  
-                var loginSection = document.getElementById('login-container');  
-                var captchaId = generateRandomId();
-                loginSection.innerHTML = `  
-                    <h2>产品信息采集工具</h2>  
-                    <div class="login-form"  id="loginForm">  
-                        <input type="text" placeholder="请输入用户名" id="username" required>  
-                        <input type="password" placeholder="请输入密码" id="password" required>  
-                        <div>
-                        <input type="test" class="captcha-input" placeholder="验证码"  id="captcha" required>  <img class="captcha-image" src="`+"http://www.jyxwl.cn/index.php/api/common/captcha?id="+captchaId+`">
-                        </div>
-                        <input type="button" id="loginButton" value="登录">  
-                    </div> 
-                `;  
+                let loginSection = document.getElementById('login-container');  
+                let userContainer = document.getElementById('user-container');  
+                loginSection.hidden = false;
+                userContainer.hidden = true;
 
+                var captchaId = generateRandomId();
+                const feixunplugCaptchaImg = document.getElementById("feixunplugCaptchaImg");
+                feixunplugCaptchaImg.src = "http://www.jyxwl.cn/index.php/api/common/captcha?id="+captchaId;
+
+                
+                
                 if (loginInfo && loginInfo.username &&  loginInfo.password) {
                     document.getElementById("username").value = loginInfo.username;
                     document.getElementById("password").value = loginInfo.password;
