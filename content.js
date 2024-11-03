@@ -100,7 +100,7 @@ function checkBrandOld(brand,callback){
         }
         let region = getRegion();
         FXLog("[test] 当前区域："+region);
-        if (region == "au" || region == 'ca' || region == 'uk'|| region == 'jp') {
+        if (region == "au" || region == 'ca' || region == 'uk'|| region == 'jp' || region == 'us') {
             FXLog("[test] 查询品牌注册情况");
             let url = 'http://www.jyxwl.cn/index.php/admin/index/checkBrandName?version=' + window.feixunPlugVersion + '&brand='+encodeURIComponent(brand)+'&region='+region;
             chrome.runtime.sendMessage({
@@ -162,6 +162,53 @@ function checkBrandWithAll(brand, callback){
     
 }
 
+// function addPlugProductRecord(times){
+//     var isComplete = false;
+
+//     FXLog("[addPlugProductRecord] start");
+//     chrome.storage.sync.get('userInfo', function(result) {
+//         FXLog("[addPlugProductRecord] 获取用户信息：",result);
+//         const userInfo = result.userInfo;
+
+//         if (!userInfo) {
+//             FXLog("[addPlugProductRecord] 缺少用户信息");
+//             return;
+//         }
+
+//         let url = 'http://www.jyxwl.cn/index.php/admin/index/addPlugProductRecord';
+//         chrome.runtime.sendMessage({
+//             action: "makePOSTRequest",
+//             url: url,
+//             token: userInfo.token,
+//             data: {
+//                 'asin': asin,
+//                 'plugVersion': window.feixunPlugVersion,
+//                 'userId': userInfo.id,
+
+//                 'seller':seller,
+//                 'sellerCount':sellerCount,
+//                 'shippingMethod':shippingMethod,
+//                 'rank':rank,
+//                 'category':category,
+//                 'rating':rating,
+//                 'brandName':brandName,
+//                 'fbaFee':fbaFee,
+//                 'weight':weight,
+//                 'dimensions':dimensions,
+//                 'profitMargin':profitMargin,
+//                 'price':price,
+//                 'listingDate':listingDate,
+//                 'asinType':asinType,
+//                 'reviewStatus':reviewStatus,
+//                 'wipoBrandRegistrationStatus':wipoBrandRegistrationStatus,
+//                 'trademarkOfficeBrandRegistrationStatus':trademarkOfficeBrandRegistrationStatus,
+//             }
+//         },(response)=> {
+//             FXLog("[addPlugProductRecord]  response:",response);
+//         });
+//     });
+// }
+
 function checkBrandByWipo(brand,callback){
     chrome.storage.sync.get('userInfo', function(result) {
         FXLog("[test] 获取用户信息：",result);
@@ -173,7 +220,7 @@ function checkBrandByWipo(brand,callback){
         }
         let region = getRegion();
         FXLog("[test] 当前区域："+region);
-        if (region == "au" || region == 'ca' || region == 'uk'|| region == 'jp') {
+        if (region == "au" || region == 'ca' || region == 'uk'|| region == 'jp' || region == 'us') {
             FXLog("[test] 查询品牌注册情况");
             let url = 'http://www.jyxwl.cn/index.php/admin/index/checkBrand?version=' + window.feixunPlugVersion + '&brand='+encodeURIComponent(brand)+'&region='+region;
             chrome.runtime.sendMessage({
@@ -238,7 +285,10 @@ function checkAsin(asin,callback){
             stationId = '8';
         } else if (region == "jp") {
             stationId = '9';
+        } else if (region == "us") {
+            stationId = '13';
         }
+
         if (stationId != '0') {
             FXLog("[test] 调用checkasin请求");
             let url = 'http://www.jyxwl.cn/index.php/admin/product/checkAsin';
@@ -510,8 +560,13 @@ function showInfo(info){
 function getRegion(){
     const parser = new URL(window.location.href);  
     const hostname = parser.hostname;  
+    if (hostname == 'www.amazon.com') {
+        return 'us';
+    }
+
     const cleanedHostname = hostname.replace(/^www\./, '');  
     const matches = cleanedHostname.match(/(?:com\.au|ca|co\.uk)$/);  
+    
     if (matches) {  
         switch (matches[0]) {  
             case 'com.au':  
@@ -548,12 +603,12 @@ function getSoldBy(callback,doc = document){
 function getSoldByNumber(callback,doc = document) {  
     const container = doc.getElementById('dynamic-aod-ingress-box');  
     if (!container) {
-        callback('**');
+        callback('1');
         return;
     }
     // 使用querySelectorAll查找所有span元素，然后遍历它们  
     const spans = container.querySelectorAll('span');  
-    let findNumber = "";
+    let findNumber = "1";
     spans.forEach(span => {  
         // 检查span的文本内容是否符合条件  
         const text = span.textContent.trim();  
@@ -806,11 +861,60 @@ function getSizeInfo2(callback,doc = document){
             return;
         }
     }
+    
+    getSizeInfo3(callback, doc);
+}
+
+function getSizeInfo3(callback,doc = document){
+    let result = {
+        size: "",
+        weight: ""
+    };
+
+    let weightInfo = getTableValueByTableParentId("productDetails_expanderTables_depthRightSections","Item Weight",doc);
+    let sizeInfo = getTableValueByTableParentId("productDetails_expanderTables_depthRightSections","Item Dimensions",doc);
+
+    FXLog("从表格获取重量信息2：",sizeInfo);
+    if (weightInfo || sizeInfo) {
+        result = {
+            size: sizeInfo,
+            weight: weightInfo
+        };
+        FXLog("尺寸获取成功：",result);
+        callback(result);
+        return;
+    }
     FXLog("获取失败：",result);
     callback(result);
 }
 
-// 假设这个HTML代码已经加载到页面中  
+function getTableValueByTableParentId(tableParentId, title,doc = document) {  
+    // 获取表格元素  
+    var tableParent = doc.getElementById(tableParentId); 
+
+    if (!tableParent) {
+        return null;
+    } 
+
+    const tables = tableParent.querySelectorAll('table');  
+    let result = null;
+    tables.forEach(table => {  
+        // 遍历表格的所有行  
+        for (var i = 0; i < table.rows.length; i++) {  
+            var row = table.rows[i];  
+            // 获取当前行的标题单元格  
+            var th = row.cells[0];  
+            // 检查标题是否匹配  
+            if (th && th.textContent.indexOf(title) != -1 && result == null) {  
+                // 如果匹配，返回对应的值单元格的内容  
+                result = row.cells[1].textContent.trim();  
+            }  
+        }  
+    });
+    
+    // 如果没有找到匹配的标题，返回null  
+    return result;  
+}  
   
 // 定义一个函数来查找并返回指定标题的值  
 function getTableValueByTitle(tableId, title,doc = document) {  
@@ -913,7 +1017,7 @@ function getAvailableDate2(callback,doc = document){
 
 function getReviewNumber(callback,doc = document){
     const container = doc.getElementById('acrPopover');
-    let ReviewNumber = "";
+    let ReviewNumber = "0";
     if (container) {
         ReviewNumber = container.title.substring(0,3);
     }
@@ -1154,8 +1258,8 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc){
                 updateInfo("feixun_plug_checkasin"+idSubfix,"<span class=\"feixun_plug_flag_red\">已存在（"+region+")</span>");
             } else if (response && response.code == 1) {
                 updateInfo("feixun_plug_checkasin"+idSubfix,"<span class=\"feixun_plug_flag_green\">不存在（"+region+")</span>");
-            }  else if (data.desc) {
-                updateInfo("feixun_plug_checkasin"+idSubfix,data.desc);
+            }  else if (response.desc) {
+                updateInfo("feixun_plug_checkasin"+idSubfix,response.desc);
             }
         })
 

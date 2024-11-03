@@ -40,13 +40,27 @@ chrome.runtime.onMessage.addListener(
           method: 'POST', 
           headers:{
             'Content-Type': 'application/json', 
+            'Batoken': request.token,
           },  
           body: JSON.stringify(request.data) 
         })  
-        .then(response => response.json())  
-        .then(data => {  
-          console.log('Data fetched:', data);  
-          sendResponse(data); 
+        .then(response => {
+          // 检查响应状态
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+        
+          // 返回响应体文本
+          return response.text();
+        })
+        .then(text => {  
+          try {
+            // 尝试将响应体解析为 JSON
+            const data = JSON.parse(text);
+            sendResponse(data);
+          } catch (error) {
+            sendResponse({"code": -1,"result": text,"desc":"result is not a json"});
+          }
         })  
         .catch(error => {  
           console.error('Fetch error:', error);  
