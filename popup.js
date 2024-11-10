@@ -76,6 +76,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 var logoutButton = document.getElementById('logoutButton');  
                 logoutButton.addEventListener('click', function() {  
+                    chrome.storage.sync.set({'feixunPlugCacheRroductInfo': {}},function (res) {
+                      
+                    });
+
                     let userContainer = document.getElementById('user-container');  
                     userContainer.hidden = true;
                     logout();  

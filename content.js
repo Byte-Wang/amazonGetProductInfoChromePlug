@@ -162,52 +162,6 @@ function checkBrandWithAll(brand, callback){
     
 }
 
-// function addPlugProductRecord(times){
-//     var isComplete = false;
-
-//     FXLog("[addPlugProductRecord] start");
-//     chrome.storage.sync.get('userInfo', function(result) {
-//         FXLog("[addPlugProductRecord] 获取用户信息：",result);
-//         const userInfo = result.userInfo;
-
-//         if (!userInfo) {
-//             FXLog("[addPlugProductRecord] 缺少用户信息");
-//             return;
-//         }
-
-//         let url = 'http://www.jyxwl.cn/index.php/admin/index/addPlugProductRecord';
-//         chrome.runtime.sendMessage({
-//             action: "makePOSTRequest",
-//             url: url,
-//             token: userInfo.token,
-//             data: {
-//                 'asin': asin,
-//                 'plugVersion': window.feixunPlugVersion,
-//                 'userId': userInfo.id,
-
-//                 'seller':seller,
-//                 'sellerCount':sellerCount,
-//                 'shippingMethod':shippingMethod,
-//                 'rank':rank,
-//                 'category':category,
-//                 'rating':rating,
-//                 'brandName':brandName,
-//                 'fbaFee':fbaFee,
-//                 'weight':weight,
-//                 'dimensions':dimensions,
-//                 'profitMargin':profitMargin,
-//                 'price':price,
-//                 'listingDate':listingDate,
-//                 'asinType':asinType,
-//                 'reviewStatus':reviewStatus,
-//                 'wipoBrandRegistrationStatus':wipoBrandRegistrationStatus,
-//                 'trademarkOfficeBrandRegistrationStatus':trademarkOfficeBrandRegistrationStatus,
-//             }
-//         },(response)=> {
-//             FXLog("[addPlugProductRecord]  response:",response);
-//         });
-//     });
-// }
 
 function checkBrandByWipo(brand,callback){
     chrome.storage.sync.get('userInfo', function(result) {
@@ -1177,181 +1131,368 @@ function parserToTitleFeatureDiv(retryTimes){
                 reviewNumber: 3,
             };
 
-            renderProductInfo(brand,region,null,false);
+            renderProductInfo(brand,region,null,false,true);
         });
 
     });
 
-    renderProductInfo(brand,region,null,false);
+    renderProductInfo(brand,region,null,false,false);
 }
 
-function renderProductInfo(brand,region,listAsin,isList,detailDoc){
+function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
 
     const idSubfix = isList ? ("_"+listAsin) : "";
     if (!isList) {
         detailDoc = document;
     }
     
-    if (brand) {
-        
+    chrome.storage.sync.get('feixunPlugCacheRroductInfo', function(result) {
+        let cacheProductInfo = result.feixunPlugCacheRroductInfo;
+        if (!cacheProductInfo){
+            cacheProductInfo = {};
+        }
+        const asin = isList ? listAsin : getASIN();
 
-        let brandListUrl = "https://" + window.location.host + "/s?k=" + encodeURI(brand) + "&ref=bl_dp_s_web_0";
-        const bylineInfo = document.getElementById('bylineInfo');
-        if (bylineInfo && bylineInfo.href) {
-            brandListUrl = bylineInfo.href;
+        let currentAsinCache = cacheProductInfo[asin];
+        if (currentAsinCache) {
+            FXLog('['+asin+']从chrome缓存查询到缓存的产品信息',currentAsinCache);
+        }
+        // 主动刷新的时候，不使用缓存
+        if (isRefresh) {
+            currentAsinCache = null;
         }
 
-        updateInfo("feixun_plug_brand"+idSubfix,"<a href='"+brandListUrl+"' target=\"_blank\">"+brand+"<a/>");
-        checkBrandWithAll(brand,(data)=>{
-            FXLog("[test]查询品牌结果：",data);
-            
-            let state = "";
-            let SY = "",SN = "",WY = "",WN = "";
-            if (data.trademarkOffice.count != undefined) {
-                if (data.trademarkOffice.count > 0) {
-                    SY = "<span class=\"feixun_plug_flag_red\">已注册"+"（T:" + data.trademarkOffice.count+")</span>";
-                } else {
-                    SN = "<span class=\"feixun_plug_flag_green\">未注册（T:0）</span>";
-                }
-            }
-            if (data.wipo.count != undefined) {
-                if (data.wipo.count > 0) {
-                    WY = "<span class=\"feixun_plug_flag_red\">已注册"+"（G:" + data.wipo.count+")</span>";
-                } else {
-                    WN = "<span class=\"feixun_plug_flag_green\">未注册（G:0）</span>";
-                }
+        if (brand) {
+            checkPduductInfoIsComplete(asin,'brand',brand);
+
+            let brandListUrl = "https://" + window.location.host + "/s?k=" + encodeURI(brand) + "&ref=bl_dp_s_web_0";
+            const bylineInfo = document.getElementById('bylineInfo');
+            if (bylineInfo && bylineInfo.href) {
+                brandListUrl = bylineInfo.href;
             }
 
-            if (window.feixunUserConfig.useWipoSwitch == 'use') {
-                if (SY != "" || SN != "" || WY != "" || WN != "") {
-                    state = SY + SN + WY + WN;
+            updateInfo("feixun_plug_brand"+idSubfix,"<a href='"+brandListUrl+"' target=\"_blank\">"+brand+"<a/>");
+            const checkBrandCallback = (data)=>{
+                FXLog("[test]查询品牌结果：",data);
+                
+                let state = "";
+                let SY = "",SN = "",WY = "",WN = "";
+                if (data.trademarkOffice.count != undefined) {
+                    if (data.trademarkOffice.count > 0) {
+                        checkPduductInfoIsComplete(asin,'brandTCount',data.trademarkOffice.count);
+                        SY = "<span class=\"feixun_plug_flag_red\">已注册"+"（T:" + data.trademarkOffice.count+")</span>";
+                    } else {
+                        checkPduductInfoIsComplete(asin,'brandTCount',0);
+                        SN = "<span class=\"feixun_plug_flag_green\">未注册（T:0）</span>";
+                    }
                 } else {
-                    state = "查询失败";
+                    checkPduductInfoIsComplete(asin,'brandTCount',-1);
                 }
+                if (data.wipo.count != undefined) {
+                    if (data.wipo.count > 0) {
+                        checkPduductInfoIsComplete(asin,'brandGCount',data.wipo.count);
+                        WY = "<span class=\"feixun_plug_flag_red\">已注册"+"（G:" + data.wipo.count+")</span>";
+                    } else {
+                        checkPduductInfoIsComplete(asin,'brandGCount',0);
+                        WN = "<span class=\"feixun_plug_flag_green\">未注册（G:0）</span>";
+                    }
+                } else {
+                    checkPduductInfoIsComplete(asin,'brandGCount',-1);
+                }
+
+                if (window.feixunUserConfig.useWipoSwitch == 'use') {
+                    if (SY != "" || SN != "" || WY != "" || WN != "") {
+                        state = SY + SN + WY + WN;
+                    } else {
+                        state = "查询失败";
+                    }
+                } else {
+                    if (SY != "") {
+                        state = SY;
+                    } else if (WY != "") {
+                        state = WY;
+                    } else if (SN != "") {
+                        state = SN
+                    } else if (WN != "") {
+                        state = WN
+                    } else {
+                        state = "查询失败";
+                    }
+                }
+
+                updateInfo("feixun_plug_brandState"+idSubfix,state);
+            };
+
+            if (currentAsinCache && (currentAsinCache['brandTCount'] != -1 || currentAsinCache['brandGCount'] != -1)) {
+                checkBrandCallback({
+                    'trademarkOffice': {
+                        'count': currentAsinCache['brandTCount']
+                    },
+                    'wipo': {
+                        'count': currentAsinCache['brandGCount']
+                    }
+                });
             } else {
-                if (SY != "") {
-                    state = SY;
-                } else if (WY != "") {
-                    state = WY;
-                } else if (SN != "") {
-                    state = SN
-                } else if (WN != "") {
-                    state = WN
-                } else {
-                    state = "查询失败";
+                checkBrandWithAll(brand,checkBrandCallback);
+            }
+        } else {
+            checkPduductInfoIsComplete(asin,'brand','');
+            checkPduductInfoIsComplete(asin,'brandGCount',-1);
+            checkPduductInfoIsComplete(asin,'brandTCount',-1);
+            updateInfo("feixun_plug_brand"+idSubfix,"获取失败");
+            updateInfo("feixun_plug_brandState"+idSubfix,"获取失败");
+        }
+
+        if (asin) {
+            updateInfo("feixun_plug_asin"+idSubfix,asin);
+            const checkAsinCallback = (response)=>{
+                if (response && response.code == 0) {
+                    checkPduductInfoIsComplete(asin,'asinIsExist',0);
+                    updateInfo("feixun_plug_checkasin"+idSubfix,"<span class=\"feixun_plug_flag_red\">已存在（"+region+")</span>");
+                } else if (response && response.code == 1) {
+                    checkPduductInfoIsComplete(asin,'asinIsExist',1);
+                    updateInfo("feixun_plug_checkasin"+idSubfix,"<span class=\"feixun_plug_flag_green\">不存在（"+region+")</span>");
+                }  else if (response.desc) {
+                    checkPduductInfoIsComplete(asin,'asinIsExist',-1);
+                    updateInfo("feixun_plug_checkasin"+idSubfix,response.desc);
                 }
+                
+            };
+            if (currentAsinCache && currentAsinCache['asinIsExist'] != -1) {
+                checkAsinCallback({
+                    'code': currentAsinCache['asinIsExist']
+                });
+            } else {
+                checkAsin(asin,checkAsinCallback);
             }
 
-            updateInfo("feixun_plug_brandState"+idSubfix,state);
-        });
-    } else {
-        updateInfo("feixun_plug_brand"+idSubfix,"获取失败");
-        updateInfo("feixun_plug_brandState"+idSubfix,"获取失败");
+
+           const getFBACallback = (response)=>{
+                if (response.amount) {
+                    var classType = "feixun_plug_flag_green";
+                    if (parseFloat(response.amount) < window.feixunUserConfig.amount) {
+                        classType = "feixun_plug_flag_red"
+                    }
+
+                    var profitRateClassType = "feixun_plug_flag_green";
+                    if (parseFloat(response.profitRate) < window.feixunUserConfig.profitRate) {
+                        profitRateClassType = "feixun_plug_flag_red"
+                    }
+
+                    updateInfo("feixun_plug_amount"+idSubfix,"<span class=\""+classType+"\">" + response.amount + "</span>");
+                    updateInfo("feixun_plug_totalFba"+idSubfix,response.totalFBA);
+                    updateInfo("feixun_plug_profitRate"+idSubfix,"<span class=\""+profitRateClassType+"\">" + response.profitRate + "</span>");
+
+                    checkPduductInfoIsComplete(asin,'amount',response.amount);
+                    checkPduductInfoIsComplete(asin,'totalFba',response.totalFBA);
+                    checkPduductInfoIsComplete(asin,'profitRate',response.profitRate);
+                } else if (response.desc) {
+                    updateInfo("feixun_plug_amount"+idSubfix,data.desc);
+                    updateInfo("feixun_plug_totalFba"+idSubfix,data.desc);
+                    updateInfo("feixun_plug_profitRate"+idSubfix,data.desc);
+
+                    checkPduductInfoIsComplete(asin,'amount',0);
+                    checkPduductInfoIsComplete(asin,'totalFba',0);
+                    checkPduductInfoIsComplete(asin,'profitRate',0);
+                } else if (response.desc) {
+                    updateInfo("feixun_plug_amount"+idSubfix,"查询失败");
+                    updateInfo("feixun_plug_totalFba"+idSubfix,"查询失败");
+                    updateInfo("feixun_plug_profitRate"+idSubfix,"查询失败");
+
+                    checkPduductInfoIsComplete(asin,'amount',0);
+                    checkPduductInfoIsComplete(asin,'totalFba',0);
+                    checkPduductInfoIsComplete(asin,'profitRate',0);
+                }
+            };
+            if (currentAsinCache) {
+                getFBACallback({
+                    'amount': currentAsinCache['amount'],
+                    'profitRate': currentAsinCache['profitRate'],
+                    'totalFBA': currentAsinCache['totalFba']
+                });
+            } else {
+                getFBA(asin,getFBACallback);
+            }
+            
+        }
+
+
+        getSoldBy((response)=>{
+            var SoldByMainUrl = "https://" + window.location.host + "/sp?seller=" + getMerchantID(detailDoc);
+            updateInfo("feixun_plug_soldBy"+idSubfix,"<a href='"+SoldByMainUrl+"' target=\"_blank\">"+response+"<a/>");
+            checkPduductInfoIsComplete(asin,'soldBy',response);
+        },detailDoc);
+
+        getSoldByNumber((response)=>{
+            var classType = "feixun_plug_flag_green";
+            if (parseInt(response) >= window.feixunUserConfig.soldByNumber) {
+                classType = "feixun_plug_flag_red"
+            }
+            updateInfo("feixun_plug_soldByNumber"+idSubfix,"<span class=\""+classType+"\">" + response + "</span>");
+            checkPduductInfoIsComplete(asin,'soldByNumber',response);
+        },detailDoc);
+
+        getShipsFrom((response)=>{
+            var type = response.substring(0,3);
+            var classType = "feixun_plug_flag_green";
+            if (window.feixunUserConfig.shipsFromTypes.includes(type)) {
+                classType = "feixun_plug_flag_red";
+            }
+            updateInfo("feixun_plug_ShipsFrom"+idSubfix,"<span class=\""+classType+"\">" + response + "</span>");
+            checkPduductInfoIsComplete(asin,'ShipsFrom',response);
+        },detailDoc);
+
+        getBestSellersRank((response)=>{
+            var classType = "feixun_plug_flag_green";
+            if (parseInt(response.rank) >= window.feixunUserConfig.categoryRank) {
+                classType = "feixun_plug_flag_red";
+            }
+            updateInfo("feixun_plug_rank"+idSubfix,"<span class=\""+classType+"\">" + response.rank + "</span>");
+            updateInfo("feixun_plug_category"+idSubfix,response.category);
+            checkPduductInfoIsComplete(asin,'rank',response.rank);
+            checkPduductInfoIsComplete(asin,'category',response.category);
+        },detailDoc);
+
+        getSizeInfo((response)=>{
+            // updateInfo("feixun_plug_size","<b>尺寸:</b>"+response.size);
+            updateInfo("feixun_plug_weight"+idSubfix,response.weight);
+            checkPduductInfoIsComplete(asin,'weight',response.weight);
+            checkPduductInfoIsComplete(asin,'size',response.size);
+        },detailDoc);
+
+        getAvailableDate((response)=>{
+            updateInfo("feixun_plug_AvailableDate"+idSubfix,response);
+            checkPduductInfoIsComplete(asin,'AvailableDate',response);
+        },detailDoc);
+
+        getReviewNumber((response)=>{
+            var classType = "feixun_plug_flag_green";
+            if (parseFloat(response) < window.feixunUserConfig.reviewNumber) {
+                classType = "feixun_plug_flag_red"
+            }
+            
+            updateInfo("feixun_plug_ReviewNumber"+idSubfix,"<span class=\""+classType+"\">" + response + "</span>");
+            checkPduductInfoIsComplete(asin,'ReviewNumber',response);
+        },detailDoc);
+
+        getAsinType((response)=>{
+            if (response != "") {
+                updateInfo("feixun_plug_asinType"+idSubfix,"<span class=\"feixun_plug_flag_red\">"+response+"</span>");
+            } else{
+                updateInfo("feixun_plug_asinType"+idSubfix,"<span class=\"feixun_plug_flag_green\">无</span>");
+            }
+            checkPduductInfoIsComplete(asin,'asinType',response);
+        },detailDoc);
+
+        getReviewType((response)=>{
+            var color="green";
+            if (response == "有评论") {
+                color="green";
+            } else if (response == "无评论") {
+                color="red";
+            } else if (response == "无评论有评分") {
+                color="yellow";
+            }
+            updateInfo("feixun_plug_reviewType"+idSubfix,"<span class=\"feixun_plug_flag_"+color+"\">"+response+"</span>");
+            checkPduductInfoIsComplete(asin,'reviewType',response);
+        },detailDoc);
+    });
+}
+
+function checkPduductInfoIsComplete(asin, type, value){
+    FXLog('['+asin+']'+type+"查询完成："+value);
+
+    if (!window.feixunPlugTempRroductInfo) {
+        window.feixunPlugTempRroductInfo = {};
+        FXLog('['+asin+']初始化临时缓存');
     }
 
+    let asinInfo = {};
+    if (window.feixunPlugTempRroductInfo && window.feixunPlugTempRroductInfo[asin]) {
+        asinInfo = window.feixunPlugTempRroductInfo[asin];
+        // FXLog('['+asin+']从临时缓存获取到当前产品信息');
+    }
+    
+    // 更新数据
+    asinInfo[type] = value;
+    window.feixunPlugTempRroductInfo[asin] = asinInfo;
+    // FXLog('['+asin+']更新临时缓存的产品信息');
 
-    const asin = isList ? listAsin : getASIN();
-    if (asin) {
-        updateInfo("feixun_plug_asin"+idSubfix,asin);
-        checkAsin(asin,(response)=>{
-            if (response && response.code == 0) {
-                updateInfo("feixun_plug_checkasin"+idSubfix,"<span class=\"feixun_plug_flag_red\">已存在（"+region+")</span>");
-            } else if (response && response.code == 1) {
-                updateInfo("feixun_plug_checkasin"+idSubfix,"<span class=\"feixun_plug_flag_green\">不存在（"+region+")</span>");
-            }  else if (response.desc) {
-                updateInfo("feixun_plug_checkasin"+idSubfix,response.desc);
+
+    const allKeys = Object.keys(asinInfo);
+    const allType = ['asinIsExist','brand','brandTCount','brandTCount','amount','totalFba','profitRate','soldBy','soldByNumber','ShipsFrom','rank','category','weight','size','AvailableDate','ReviewNumber','asinType','reviewType'];
+    let isComplete = true;
+
+    allType.forEach(type => {
+        if (!allKeys.includes(type)) {
+            isComplete = false;
+            // FXLog('['+asin+']还有'+type+'未查询');
+        }
+    });
+
+    if (isComplete) {
+        FXLog('['+asin+']已查询完所有产品信息，更新到chrome缓存',window.feixunPlugTempRroductInfo[asin]);
+        chrome.storage.sync.get('feixunPlugCacheRroductInfo', function(result) {
+            let cacheProductInfo = result.feixunPlugCacheRroductInfo;
+            if (!cacheProductInfo){
+                cacheProductInfo = {};
             }
-        })
+            FXLog('['+asin+']从chrome缓存查询已存产品信息',cacheProductInfo);
+            cacheProductInfo[asin] = window.feixunPlugTempRroductInfo[asin];
 
-        getFBA(asin,(response)=>{
-            if (response.amount) {
-                var classType = "feixun_plug_flag_green";
-                if (parseFloat(response.amount) < window.feixunUserConfig.amount) {
-                    classType = "feixun_plug_flag_red"
-                }
-
-                var profitRateClassType = "feixun_plug_flag_green";
-                if (parseFloat(response.profitRate) < window.feixunUserConfig.profitRate) {
-                    profitRateClassType = "feixun_plug_flag_red"
-                }
-
-                updateInfo("feixun_plug_amount"+idSubfix,"<span class=\""+classType+"\">" + response.amount + "</span>");
-                updateInfo("feixun_plug_totalFba"+idSubfix,response.totalFBA);
-                updateInfo("feixun_plug_profitRate"+idSubfix,"<span class=\""+profitRateClassType+"\">" + response.profitRate + "</span>");
-            } else if (response.desc) {
-                updateInfo("feixun_plug_amount"+idSubfix,data.desc);
-                updateInfo("feixun_plug_totalFba"+idSubfix,data.desc);
-                updateInfo("feixun_plug_profitRate"+idSubfix,data.desc);
-            } else if (response.desc) {
-                updateInfo("feixun_plug_amount"+idSubfix,"查询失败");
-                updateInfo("feixun_plug_totalFba"+idSubfix,"查询失败");
-                updateInfo("feixun_plug_profitRate"+idSubfix,"查询失败");
-            }
+            chrome.storage.sync.set({'feixunPlugCacheRroductInfo': cacheProductInfo},function (res) {
+                FXLog('['+asin+']更新到chrome缓存完成');
+            });
         });
     }
+}
 
 
-    getSoldBy((response)=>{
-        var SoldByMainUrl = "https://" + window.location.host + "/sp?seller=" + getMerchantID(detailDoc);
-        updateInfo("feixun_plug_soldBy"+idSubfix,"<a href='"+SoldByMainUrl+"' target=\"_blank\">"+response+"<a/>");
-    },detailDoc);
+function addPlugProductRecord(times){
+    var isComplete = false;
 
-    getSoldByNumber((response)=>{
-        var classType = "feixun_plug_flag_green";
-        if (parseInt(response) >= window.feixunUserConfig.soldByNumber) {
-            classType = "feixun_plug_flag_red"
+    FXLog("[addPlugProductRecord] start");
+    chrome.storage.sync.get('userInfo', function(result) {
+        FXLog("[addPlugProductRecord] 获取用户信息：",result);
+        const userInfo = result.userInfo;
+
+        if (!userInfo) {
+            FXLog("[addPlugProductRecord] 缺少用户信息");
+            return;
         }
-        updateInfo("feixun_plug_soldByNumber"+idSubfix,"<span class=\""+classType+"\">" + response + "</span>");
-    },detailDoc);
 
-    getShipsFrom((response)=>{
-        var type = response.substring(0,3);
-        var classType = "feixun_plug_flag_green";
-        if (window.feixunUserConfig.shipsFromTypes.includes(type)) {
-            classType = "feixun_plug_flag_red";
-        }
-        updateInfo("feixun_plug_ShipsFrom"+idSubfix,"<span class=\""+classType+"\">" + response + "</span>");
-    },detailDoc);
+        let url = 'http://www.jyxwl.cn/index.php/admin/index/addPlugProductRecord';
+        chrome.runtime.sendMessage({
+            action: "makePOSTRequest",
+            url: url,
+            token: userInfo.token,
+            data: {
+                'asin': asin,
+                'plugVersion': window.feixunPlugVersion,
+                'userId': userInfo.id,
 
-    getBestSellersRank((response)=>{
-        var classType = "feixun_plug_flag_green";
-        if (parseInt(response.rank) >= window.feixunUserConfig.categoryRank) {
-            classType = "feixun_plug_flag_red";
-        }
-        updateInfo("feixun_plug_rank"+idSubfix,"<span class=\""+classType+"\">" + response.rank + "</span>");
-        updateInfo("feixun_plug_category"+idSubfix,response.category);
-    },detailDoc);
-
-    getSizeInfo((response)=>{
-        // updateInfo("feixun_plug_size","<b>尺寸:</b>"+response.size);
-        updateInfo("feixun_plug_weight"+idSubfix,response.weight);
-    },detailDoc);
-
-    getAvailableDate((response)=>{
-        updateInfo("feixun_plug_AvailableDate"+idSubfix,response);
-    },detailDoc);
-
-    getReviewNumber((response)=>{
-        var classType = "feixun_plug_flag_green";
-        if (parseFloat(response) < window.feixunUserConfig.reviewNumber) {
-            classType = "feixun_plug_flag_red"
-        }
-        
-        updateInfo("feixun_plug_ReviewNumber"+idSubfix,"<span class=\""+classType+"\">" + response + "</span>");
-    },detailDoc);
-
-    getAsinType((response)=>{
-        if (response != "") {
-            updateInfo("feixun_plug_asinType"+idSubfix,"<span class=\"feixun_plug_flag_red\">"+response+"</span>");
-        } else{
-            updateInfo("feixun_plug_asinType"+idSubfix,"<span class=\"feixun_plug_flag_green\">无</span>");
-        }
-        
-    },detailDoc);
-
-    getReviewType((response)=>{
-        updateInfo("feixun_plug_reviewType"+idSubfix,response);
-    },detailDoc);
+                'seller':seller,
+                'sellerCount':sellerCount,
+                'shippingMethod':shippingMethod,
+                'rank':rank,
+                'category':category,
+                'rating':rating,
+                'brandName':brandName,
+                'fbaFee':fbaFee,
+                'weight':weight,
+                'dimensions':dimensions,
+                'profitMargin':profitMargin,
+                'price':price,
+                'listingDate':listingDate,
+                'asinType':asinType,
+                'reviewStatus':reviewStatus,
+                'wipoBrandRegistrationStatus':wipoBrandRegistrationStatus,
+                'trademarkOfficeBrandRegistrationStatus':trademarkOfficeBrandRegistrationStatus,
+            }
+        },(response)=> {
+            FXLog("[addPlugProductRecord]  response:",response);
+        });
+    });
 }
 
 function getBrandFromDetail(asin,callback){
@@ -1451,14 +1592,14 @@ function parserToSerchListView(){
                             reviewNumber: 3,
                         };
                         getBrandFromDetail(asin, (brand,detailDoc)=>{
-                            renderProductInfo(brand,region,asin,true,detailDoc);
+                            renderProductInfo(brand,region,asin,true,detailDoc,true);
                         });
                     });
 
                 });
 
                 getBrandFromDetail(asin, (brand,detailDoc)=>{
-                    renderProductInfo(brand,region,asin,true,detailDoc);
+                    renderProductInfo(brand,region,asin,true,detailDoc,false);
                 });
 
 
