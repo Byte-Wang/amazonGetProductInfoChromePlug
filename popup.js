@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log("更新用户配置", userConfig);
                     chrome.storage.sync.set({'feixunUserConfig': userConfig}, function() {  
                         console.log('保存成功');  
-                        feixunShowToast('save success!');
+                        feixunShowToast('保存成功!');
                         // location.reload();
                     });  
                 }); 
