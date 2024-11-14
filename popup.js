@@ -1,18 +1,18 @@
 document.addEventListener('DOMContentLoaded', function() {  
     chrome.storage.sync.get('loginInfo', function(loginInfoResult) { 
-        console.log('è·å–ç™»å½•ä¿¡æ¯ï¼š',loginInfoResult.loginInfo); 
+        console.log('»ñÈ¡µÇÂ¼ĞÅÏ¢£º',loginInfoResult.loginInfo); 
         const loginInfo = loginInfoResult.loginInfo;
     chrome.storage.sync.get('userInfo', function(result) { 
-        console.log('è·å–ç”¨æˆ·ä¿¡æ¯ï¼š',result.userInfo); 
+        console.log('»ñÈ¡ÓÃ»§ĞÅÏ¢£º',result.userInfo); 
         chrome.storage.sync.get('feixunUserConfig', function(userConfig) { 
         
             userConfig = userConfig.feixunUserConfig;
 
-            console.log('è·å–ç”¨æˆ·é…ç½®ä¿¡æ¯ï¼š',userConfig); 
+            console.log('»ñÈ¡ÓÃ»§ÅäÖÃĞÅÏ¢£º',userConfig); 
             const userInfo = result.userInfo;
 
             if (!userConfig) {
-                console.log('åˆå§‹åŒ–ç”¨æˆ·é…ç½®'); 
+                console.log('³õÊ¼»¯ÓÃ»§ÅäÖÃ'); 
                 userConfig = {
                     useWipoSwitch: "use",
                     shipsFromTypes: ['FBA','FBM','AMZ'],
@@ -33,19 +33,19 @@ document.addEventListener('DOMContentLoaded', function() {
             let reviewNumber = (userConfig && userConfig.reviewNumber)?userConfig.reviewNumber:3.0;
             
             if (userInfo && userInfo.token) {
-                // å·²ç™»å½•ï¼Œå…³é—­ç™»å½•é¡µé¢ï¼Œæ˜¾ç¤ºé…ç½®é¡µé¢
+                // ÒÑµÇÂ¼£¬¹Ø±ÕµÇÂ¼Ò³Ãæ£¬ÏÔÊ¾ÅäÖÃÒ³Ãæ
                 let loginSection = document.getElementById('login-container');  
                 let userContainer = document.getElementById('user-container');  
                 loginSection.hidden = true;
                 userContainer.hidden = false;
                 
-                // æ˜¾ç¤ºç”¨æˆ·å
+                // ÏÔÊ¾ÓÃ»§Ãû
                 var usernameLabel = document.getElementById('username-label');  
                 usernameLabel.innerHTML = userInfo.nickname;
             
                 
 
-                // åˆå§‹åŒ–ç”¨æˆ·é…ç½®åˆ°é¡µé¢
+                // ³õÊ¼»¯ÓÃ»§ÅäÖÃµ½Ò³Ãæ
                 var switchEle = document.getElementById('switch');  
                 switchEle.checked = useWipoSwitch == "use"?true:false;
 
@@ -76,17 +76,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 var logoutButton = document.getElementById('logoutButton');  
                 logoutButton.addEventListener('click', function() {  
-                    chrome.storage.sync.set({'feixunPlugCacheRroductInfo': {}},function (res) {
-                      
-                    });
-
                     let userContainer = document.getElementById('user-container');  
                     userContainer.hidden = true;
                     logout();  
                 }); 
 
 
-                // ç›‘å¬ç™»å‡ºæŒ‰é’®
+                // ¼àÌıµÇ³ö°´Å¥
                 var saveButton = document.getElementById('saveButton');  
                 saveButton.addEventListener('click', function() {  
                     userConfig = {
@@ -99,28 +95,28 @@ document.addEventListener('DOMContentLoaded', function() {
                         reviewNumber: ReviewNumberEle.value,
                     };
 
-                    console.log("æ›´æ–°ç”¨æˆ·é…ç½®", userConfig);
+                    console.log("¸üĞÂÓÃ»§ÅäÖÃ", userConfig);
                     chrome.storage.sync.set({'feixunUserConfig': userConfig}, function() {  
-                        console.log('ä¿å­˜æˆåŠŸ');  
+                        console.log('±£´æ³É¹¦');  
                         feixunShowToast('save success!');
                         // location.reload();
                     });  
                 }); 
         
                 // var switchInput = document.getElementById('switch');  
-                // console.log('è·å–å¼€å…³æŒ‰é’®ï¼š',switchInput);
+                // console.log('»ñÈ¡¿ª¹Ø°´Å¥£º',switchInput);
                 // switchInput.addEventListener('change', function() {  
                 //     debugger;
                 //     if (this.checked) {  
-                //         console.log('å¼€å…³å·²æ‰“å¼€');  
+                //         console.log('¿ª¹ØÒÑ´ò¿ª');  
                 //         chrome.storage.sync.set({'useWipoSwitch': {value: 1}}, function() {  
-                //             console.log('ä¿å­˜æˆåŠŸ');  
+                //             console.log('±£´æ³É¹¦');  
                 //             location.reload();
                 //         });  
                 //     } else {  
-                //         console.log('å¼€å…³å·²å…³é—­');  
+                //         console.log('¿ª¹ØÒÑ¹Ø±Õ');  
                 //         chrome.storage.sync.set({'useWipoSwitch': {value: 0}}, function() {  
-                //             console.log('ä¿å­˜æˆåŠŸ');  
+                //             console.log('±£´æ³É¹¦');  
                 //             location.reload();
                 //         });  
                 //     }  
@@ -144,6 +140,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 var loginButton = document.getElementById('loginButton');  
                 loginButton.addEventListener('click', function() {  
+
+                    // µÇÂ¼µÄÊ±ºòÇåÒ»ÏÂ¹ıÆÚµÄ»º´æ
+                    chrome.storage.sync.get('feixunPlugCacheRroductInfo', function(result) {
+                        console.log('²éÑ¯µ½»º´æÊı¾İ',result);
+
+                        let cacheProductInfo = result.feixunPlugCacheRroductInfo;
+                        if (!cacheProductInfo){
+                            cacheProductInfo = {};
+                        }
+
+                        const allAsins = Object.keys(cacheProductInfo);
+                        let avalibleCache = {};
+                        allAsins.forEach(asin => {
+                            const cacheTime = cacheProductInfo[asin]['cacheTime'];
+                            const nowTime = Date.now();
+                            if ((nowTime - cacheTime) < 3 * 24 * 60 * 60 * 1000) {
+                                avalibleCache[asin] = cacheProductInfo[asin];
+                            } else {
+                                console.log('Çå³ı¹ıÆÚ»º´æ',cacheProductInfo[asin]);
+                            }
+                        });
+
+                        chrome.storage.sync.set({'feixunPlugCacheRroductInfo': avalibleCache},function (res) {
+                            console.log('¸üĞÂµ½chrome»º´æÍê³É');
+                        });
+                    });
+
                     let userContainer = document.getElementById('user-container');  
                     userContainer.hidden = false;
                     login(captchaId);  
@@ -153,6 +176,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     });
 });
+
 
 function feixunShowToast(content) {
     const targetElement = document.getElementById('saveButton');
@@ -176,7 +200,7 @@ function feixunShowToast(content) {
 }
 
 function generateRandomId() {  
-    // ç”Ÿæˆä¸€ä¸ªé•¿åº¦ä¸º8çš„åå…­è¿›åˆ¶å­—ç¬¦ä¸²  
+    // Éú³ÉÒ»¸ö³¤¶ÈÎª8µÄÊ®Áù½øÖÆ×Ö·û´®  
     function generateRandomHex(length) {  
         let result = '';  
         const characters = '0123456789abcdef';  
@@ -187,21 +211,21 @@ function generateRandomId() {
         return result;  
     }  
   
-    // ç”ŸæˆUUIDçš„å„ä¸ªéƒ¨åˆ†  
+    // Éú³ÉUUIDµÄ¸÷¸ö²¿·Ö  
     const timeLow = generateRandomHex(8);  
     const timeMid = generateRandomHex(4);  
-    const timeHighAndVersion = generateRandomHex(4); // æ³¨æ„ï¼šè¿™é‡Œä¸åŒ…å«ç‰ˆæœ¬ä½ï¼Œå› ä¸ºç‰ˆæœ¬ä½é€šå¸¸æ˜¯å›ºå®šçš„  
-    const clockSeqHiAndReserved = '4' + generateRandomHex(1); // ç¬¬ä¸€ä¸ªå­—ç¬¦é€šå¸¸æ˜¯4ï¼Œä»¥è¡¨ç¤ºUUIDçš„ç‰ˆæœ¬  
+    const timeHighAndVersion = generateRandomHex(4); // ×¢Òâ£ºÕâÀï²»°üº¬°æ±¾Î»£¬ÒòÎª°æ±¾Î»Í¨³£ÊÇ¹Ì¶¨µÄ  
+    const clockSeqHiAndReserved = '4' + generateRandomHex(1); // µÚÒ»¸ö×Ö·ûÍ¨³£ÊÇ4£¬ÒÔ±íÊ¾UUIDµÄ°æ±¾  
     const clockSeqLow = generateRandomHex(3);  
     const node = generateRandomHex(12);  
   
-    // æ‹¼æ¥æˆæœ€ç»ˆçš„UUIDæ ¼å¼  
+    // Æ´½Ó³É×îÖÕµÄUUID¸ñÊ½  
     return `${timeLow}-${timeMid}-${timeHighAndVersion}-${clockSeqHiAndReserved}-${node}`;  
 }  
 
 function logout(){
     chrome.storage.sync.set({'userInfo': {}}, function() {  
-        console.log('ä¿å­˜æˆåŠŸ');  
+        console.log('±£´æ³É¹¦');  
         location.reload();
     });  
 }
@@ -229,20 +253,20 @@ function login(captchaId) {
     })  
     .then(response => response.json())  
     .then(data => {  
-        console.log('ç™»å½•ç»“æœ',data);  
+        console.log('µÇÂ¼½á¹û',data);  
         if (data.code == 1) {  
-            console.log('ä¿å­˜token',data.data);  
-            // ä¿å­˜token  
+            console.log('±£´ætoken',data.data);  
+            // ±£´ætoken  
             chrome.storage.sync.set({'userInfo': data.data.userinfo}, function() {  
-                console.log('ä¿å­˜æˆåŠŸ');  
+                console.log('±£´æ³É¹¦');  
                 location.reload();
             });  
             chrome.storage.sync.set({'loginInfo': {"username":username,"password":password}}, function() {  
-                console.log('ä¿å­˜æˆåŠŸ');  
+                console.log('±£´æ³É¹¦');  
             });  
-            // å¯ä»¥åœ¨è¿™é‡Œå¤„ç†ç™»å½•æˆåŠŸåçš„é€»è¾‘ï¼Œå¦‚å…³é—­å¼¹çª—  
+            // ¿ÉÒÔÔÚÕâÀï´¦ÀíµÇÂ¼³É¹¦ºóµÄÂß¼­£¬Èç¹Ø±Õµ¯´°  
         } else {  
-            alert('ç™»å½•å¤±è´¥');  
+            alert('µÇÂ¼Ê§°Ü');  
         }  
         location.reload();
     })  
