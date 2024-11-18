@@ -1620,7 +1620,11 @@ function parserToSerchListView(){
 
                 });
 
+                FXLog("[test]["+asin+"] 页面初始化完成");
+
                 getBrandFromDetail(asin, (brand,detailDoc)=>{
+                    FXLog("[test]["+asin+"] 获取到产品详情页,开始查询产品信息",detailDoc);
+                    
                     renderProductInfo(brand,region,asin,true,detailDoc,false);
                 });
 
