@@ -838,6 +838,66 @@ function getSizeInfo3(callback,doc = document){
         callback(result);
         return;
     }
+
+    getSizeInfo4(callback, doc);
+}
+
+function getSizeInfo4(callback,doc = document){
+   
+
+    let result = {
+        size: "",
+        weight: ""
+    };
+    var productDescription = doc.getElementById("productDescription"); 
+    const ps = productDescription.querySelectorAll('p');  
+
+    FXLog("从产品描述获取重量信息：",ps);
+
+    var height = null;var width = null;var weight = null;
+    ps.forEach(p => {  
+        
+        const trimmedStr = p.textContent.trim();
+
+        FXLog("p：",trimmedStr);
+
+        const heightReg = /Height:(.*)$/s;   
+        const heightMatch = trimmedStr.match(heightReg);  
+        if (heightMatch && height == null) {
+            height = heightMatch[1].trim();
+            height = height.replace('approx.', '');
+            FXLog("hhh：",height);
+        }
+
+        const WidthReg = /Width:(.*)$/s;   
+        const WidthMatch = trimmedStr.match(WidthReg);  
+        if (WidthMatch && width == null) {
+            width = WidthMatch[1].trim();
+            width = width.replace('approx.', '');
+            FXLog("wwww",width);
+        }
+
+        const WeightReg = /Weight:(.*)$/s;   
+        const WeightMatch = trimmedStr.match(WeightReg);  
+        if (WeightMatch && weight == null) {
+            weight = WeightMatch[1].trim();
+            weight = weight.replace('approx.', '');
+            FXLog("wwweee",weight);
+        }
+    });
+
+    FXLog("hww：",height,width,weight);
+
+    if (height != null || width != null || weight != null) {
+        result = {
+            size: width + "x" + height,
+            weight: weight
+        }; 
+        FXLog("尺寸获取成功：",result);
+        callback(result);
+        return;
+    }
+
     FXLog("获取失败：",result);
     callback(result);
 }
