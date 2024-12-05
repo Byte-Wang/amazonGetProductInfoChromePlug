@@ -129,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 var captchaId = generateRandomId();
                 const feixunplugCaptchaImg = document.getElementById("feixunplugCaptchaImg");
-                feixunplugCaptchaImg.src = "http://www.jyxwl.cn/index.php/api/common/captcha?id="+captchaId;
+                feixunplugCaptchaImg.src = "http://119.91.217.3/index.php/api/common/captcha?id="+captchaId;
 
                 
                 
@@ -237,7 +237,7 @@ function login(captchaId) {
 
     console.log(username,password);
 
-    fetch('http://www.jyxwl.cn/index.php/admin/index/login', {  
+    fetch('http://119.91.217.3/index.php/admin/index/login', {  
         method: 'POST',  
         headers: {  
             'Content-Type': 'application/json',  
