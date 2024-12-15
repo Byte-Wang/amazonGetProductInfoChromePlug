@@ -850,7 +850,10 @@ function getSizeInfo4(callback,doc = document){
         weight: ""
     };
     var productDescription = doc.getElementById("productDescription"); 
-    const ps = productDescription.querySelectorAll('p');  
+    var ps = [];
+    if (productDescription) {
+        ps = productDescription.querySelectorAll('p');  
+    }
 
     FXLog("从产品描述获取重量信息：",ps);
 
@@ -1117,6 +1120,33 @@ function getMerchantID(doc = document){
         return container.value;
     }
     return ""
+}
+
+function getProductTitle(callback, doc = document){
+    const container = doc.getElementById('productTitle');
+    if(container){ 
+        callback(container.textContent);
+    } else {
+        callback("");
+    }
+}
+
+function getProductImage(callback, doc = document){
+    
+    const container = doc.getElementById('imgTagWrapperId');
+    FXLog('[getProductImage]container',container);
+    // 找到img标签
+    if (container) {
+        const img = container.querySelector('img');
+        FXLog('[getProductImage]img',img);
+        if (img) {
+            callback(img.src);
+        } else {
+            callback("");
+        }
+    } else {
+        callback("");
+    }
 }
 
 function copyById(id){
@@ -1466,6 +1496,14 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
             updateInfo("feixun_plug_reviewType"+idSubfix,"<span class=\"feixun_plug_flag_"+color+"\">"+response+"</span>");
             checkPduductInfoIsComplete(currentAsinCache,asin,'reviewType',response);
         },detailDoc);
+
+        getProductTitle((title)=>{
+            checkPduductInfoIsComplete(currentAsinCache,asin,'productTitle',title);
+        },detailDoc);
+
+        getProductImage((image)=>{
+            checkPduductInfoIsComplete(currentAsinCache,asin,'productImage',image);
+        },detailDoc);
     });
 }
 
@@ -1495,13 +1533,13 @@ function checkPduductInfoIsComplete(cahce, asin, type, value){
 
 
     const allKeys = Object.keys(asinInfo);
-    const allType = ['asinIsExist','brand','brandGCount','brandTCount','amount','totalFba','profitRate','soldBy','soldByNumber','ShipsFrom','rank','category','weight','size','AvailableDate','ReviewNumber','asinType','reviewType'];
+    const allType = ['asinIsExist','brand','brandGCount','brandTCount','amount','totalFba','profitRate','soldBy','soldByNumber','ShipsFrom','rank','category','weight','size','AvailableDate','ReviewNumber','asinType','reviewType','productTitle','productImage'];
     let isComplete = true;
 
     allType.forEach(type => {
         if (!allKeys.includes(type)) {
             isComplete = false;
-            // FXLog('['+asin+']还有'+type+'未查询');
+            FXLog('['+asin+']还有'+type+'未查询');
         }
     });
 
@@ -1545,7 +1583,6 @@ function addPlugProductRecord(asin, productInfo){
             'asin': asin,
             'plugVersion': window.feixunPlugVersion,
             'userId': userInfo.id,
-
             'seller':productInfo['soldBy'],
             'sellerCount':productInfo['soldByNumber'],
             'shippingMethod':productInfo['ShipsFrom'],
@@ -1563,6 +1600,8 @@ function addPlugProductRecord(asin, productInfo){
             'reviewStatus':productInfo['reviewType'],
             'wipoBrandRegistrationStatus':productInfo['brandGCount'],
             'trademarkOfficeBrandRegistrationStatus':productInfo['brandTCount'],
+            'productTitle':productInfo['productTitle'],
+            'pictureUrl':productInfo['productImage'],
         }
 
         let url = 'http://119.91.217.3/index.php/admin/index/addPlugProductRecord';
