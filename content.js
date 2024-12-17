@@ -67,7 +67,7 @@ function checkVersionIsAvalible(callback,retryTimes = 3){
         }
         
        
-        let url = 'http://119.91.217.3/index.php/admin/index/checkChromePlugVersion?version=' + window.feixunPlugVersion;
+        let url = 'http://119.91.217.3:8087/index.php/admin/index/checkChromePlugVersion?version=' + window.feixunPlugVersion;
         chrome.runtime.sendMessage({
             action: "makeCorsRequest",
             url: url,
@@ -102,7 +102,7 @@ function checkBrandOld(brand,callback){
         FXLog("[test] 当前区域："+region);
         if (region == "au" || region == 'ca' || region == 'uk'|| region == 'jp' || region == 'us') {
             FXLog("[test] 查询品牌注册情况");
-            let url = 'http://119.91.217.3/index.php/admin/index/checkBrandName?version=' + window.feixunPlugVersion + '&brand='+encodeURIComponent(brand)+'&region='+region;
+            let url = 'http://119.91.217.3:8087/index.php/admin/index/checkBrandName?version=' + window.feixunPlugVersion + '&brand='+encodeURIComponent(brand)+'&region='+region;
             chrome.runtime.sendMessage({
                 action: "makeCorsRequest",
                 url: url,
@@ -176,7 +176,7 @@ function checkBrandByWipo(brand,callback){
         FXLog("[test] 当前区域："+region);
         if (region == "au" || region == 'ca' || region == 'uk'|| region == 'jp' || region == 'us') {
             FXLog("[test] 查询品牌注册情况");
-            let url = 'http://119.91.217.3/index.php/admin/index/checkBrand?version=' + window.feixunPlugVersion + '&brand='+encodeURIComponent(brand)+'&region='+region;
+            let url = 'http://119.91.217.3:8087/index.php/admin/index/checkBrand?version=' + window.feixunPlugVersion + '&brand='+encodeURIComponent(brand)+'&region='+region;
             chrome.runtime.sendMessage({
                 action: "makeCorsRequest",
                 url: url,
@@ -245,7 +245,7 @@ function checkAsin(asin,callback){
 
         if (stationId != '0') {
             FXLog("[test] 调用checkasin请求");
-            let url = 'http://119.91.217.3/index.php/admin/product/checkAsin';
+            let url = 'http://119.91.217.3:8087/index.php/admin/product/checkAsin';
             chrome.runtime.sendMessage({
                 action: "makePOSTRequest",
                 url: url,
@@ -279,7 +279,7 @@ function getFBA(asin, callback) {
         FXLog("[test] 当前区域："+region);
 
         FXLog("[test] 调用getFba请求");
-        let url = 'http://119.91.217.3/index.php/admin/index/getFBA?version=' + window.feixunPlugVersion + '&region='+region+'&asin='+asin;
+        let url = 'http://119.91.217.3:8087/index.php/admin/index/getFBA?version=' + window.feixunPlugVersion + '&region='+region+'&asin='+asin;
         chrome.runtime.sendMessage({
             action: "makeCorsRequest",
             url: url,
@@ -1604,7 +1604,7 @@ function addPlugProductRecord(asin, productInfo){
             'pictureUrl':productInfo['productImage'],
         }
 
-        let url = 'http://119.91.217.3/index.php/admin/index/addPlugProductRecord';
+        let url = 'http://119.91.217.3:8087/index.php/admin/index/addPlugProductRecord';
         chrome.runtime.sendMessage({
             action: "makePOSTRequest",
             url: url,
