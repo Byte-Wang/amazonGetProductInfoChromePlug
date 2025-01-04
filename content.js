@@ -218,6 +218,24 @@ function checkBrandByWipo(brand,callback){
     });
 }
 
+function getStationId(region){
+    let stationId = '0';
+
+    if (region == "au") {
+        stationId = '11';
+    } else if (region == "ca") {
+        stationId = '7';
+    } else if (region == "uk") {
+        stationId = '8';
+    } else if (region == "jp") {
+        stationId = '9';
+    } else if (region == "us") {
+        stationId = '13';
+    }
+
+    return stationId;
+}
+
 function checkAsin(asin,callback){
     chrome.storage.sync.get('userInfo', function(result) {
         FXLog("[test] 获取用户信息：",result);
@@ -229,19 +247,7 @@ function checkAsin(asin,callback){
         }
         let region = getRegion();
         FXLog("[test] 当前区域："+region);
-        let stationId = '0';
-
-        if (region == "au") {
-            stationId = '11';
-        } else if (region == "ca") {
-            stationId = '7';
-        } else if (region == "uk") {
-            stationId = '8';
-        } else if (region == "jp") {
-            stationId = '9';
-        } else if (region == "us") {
-            stationId = '13';
-        }
+        let stationId = getStationId(region);
 
         if (stationId != '0') {
             FXLog("[test] 调用checkasin请求");
@@ -901,6 +907,29 @@ function getSizeInfo4(callback,doc = document){
         return;
     }
 
+    getSizeInfo5(callback, doc);
+}
+
+function getSizeInfo5(callback,doc = document){
+    let result = {
+        size: "",
+        weight: ""
+    };
+    let sizeInfo = getTableValueByTitle("productDetails_techSpec_section_1","Product dimensions",doc);
+    FXLog("从表格获取尺寸信息：",sizeInfo);
+    if (sizeInfo) {
+        let sizeInfoArr = sizeInfo.split(";");
+        if (sizeInfoArr && sizeInfoArr.length == 2) {
+            result = {
+                size: sizeInfoArr[0],
+                weight: sizeInfoArr[1]
+            };
+            FXLog("获取成功：",result);
+            callback(result);
+            return;
+        }
+    }
+    
     FXLog("获取失败：",result);
     callback(result);
 }
@@ -1579,6 +1608,8 @@ function addPlugProductRecord(asin, productInfo){
             return;
         }
 
+        let stationId = getStationId(getRegion());
+
         let requestParams = {
             'asin': asin,
             'plugVersion': window.feixunPlugVersion,
@@ -1602,7 +1633,10 @@ function addPlugProductRecord(asin, productInfo){
             'trademarkOfficeBrandRegistrationStatus':productInfo['brandTCount'],
             'productTitle':productInfo['productTitle'],
             'pictureUrl':productInfo['productImage'],
+            'stationId': stationId,
         }
+
+        FXLog("[addPlugProductRecord]  request:",requestParams);
 
         let url = 'http://119.91.217.3:8087/index.php/admin/index/addPlugProductRecord';
         chrome.runtime.sendMessage({
