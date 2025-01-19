@@ -1539,6 +1539,7 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
 function checkPduductInfoIsComplete(cahce, asin, type, value){
     if (cahce) {
         FXLog('['+asin+']'+type+"通过缓存加载的："+value);
+        autoGotoNextPage(asin);
         return;
     }
 
@@ -1593,9 +1594,54 @@ function checkPduductInfoIsComplete(cahce, asin, type, value){
         });
 
         addPlugProductRecord(asin, tempProductInfo);
+
+        autoGotoNextPage(asin);
     }
 }
 
+function autoGotoNextPage(completeAsin){
+    FXLog('[autoNextPage] '+completeAsin+'的数据加载完成，还有等待加载的产品:',window.waitingComplete);
+    if (!hasSearchResultDiv()) {
+        FXLog('[autoNextPage] 不是列表页，不需要自动翻页');
+        return;
+    }
+
+    if (window.waitingComplete && window.waitingComplete.includes(completeAsin)) {
+        window.waitingComplete = window.waitingComplete.filter(item => item !== completeAsin);  
+    }
+
+    if (window.feixunUserConfig.autoNextPage != 'Y') {
+        FXLog('[autoNextPage] 没有开启自动翻页，不需要自动翻页');
+        return;
+    }
+
+    if (window.waitingComplete && window.waitingComplete.length == 0) {
+        FXLog('[autoNextPage] 所有产品都加载完成了');
+        const nextPageButton = getNextPageButton();
+        if (nextPageButton && nextPageButton.href != "" && nextPageButton.href != null) {
+            FXLog('[autoNextPage] 找到下一页按钮：',nextPageButton.href);
+            window.location.href = nextPageButton.href;
+        } else {
+            FXLog('[autoNextPage] 没有找到下一页按钮，可能所有页面都加载完成了');
+        }
+    }
+
+}
+
+function getNextPageButton(){
+    // 获取class为s-result-list的div下的所有a标签
+    const links = document.querySelectorAll('.s-result-list a');
+    let findLink = null;
+    // 遍历所有获取到的a标签
+    links.forEach(link => {
+        // 检查a标签是否有aria-label属性，并且该属性的值是否包含"Go to next page"
+        if (link.hasAttribute('aria-label') && link.getAttribute('aria-label').includes('Go to next page')) {
+            // 如果条件满足，打印出或者做其他处理这个a标签的href属性
+            findLink = link
+        }
+    });
+    return findLink;
+}
 
 function addPlugProductRecord(asin, productInfo){
     FXLog("[addPlugProductRecord] start");
@@ -1674,11 +1720,15 @@ function parserToSerchListView(){
 
     addStyle();
     
+    window.waitingComplete = [];
+
     divs.forEach(div => {  
         // 检查div是否包含data-asin属性  
         if (div.hasAttribute('data-asin') && div.getAttribute('data-asin').trim() !== '') {  
             const asin = div.getAttribute('data-asin');
             FXLog("[test] 查询到asin："+asin);
+
+            window.waitingComplete.push(asin);
 
             const declarativeSpan = div.querySelector('.a-section');  
             const puisgRow = div.querySelector('.puisg-row');  

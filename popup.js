@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!userConfig) {
                 console.log('初始化用户配置'); 
                 userConfig = {
+                    autoNextPage: "N",
                     useWipoSwitch: "use",
                     shipsFromTypes: ['FBA','FBM','AMZ'],
                     soldByNumber: 8,
@@ -24,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
             }
 
+            let autoNextPage = (userConfig && userConfig.autoNextPage)?userConfig.autoNextPage:"N";
             let useWipoSwitch = (userConfig && userConfig.useWipoSwitch)?userConfig.useWipoSwitch:"use";
             let shipsFromTypes = (userConfig && userConfig.shipsFromTypes)?userConfig.shipsFromTypes:['FBA','FBM','AMZ'];
             let soldByNumber =  (userConfig && userConfig.soldByNumber)?userConfig.soldByNumber:8;
@@ -46,6 +48,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
 
                 // 初始化用户配置到页面
+                var autoNextEle = document.getElementById('autoNext');  
+                autoNextEle.checked = autoNextPage == "Y"?true:false;
+
                 var switchEle = document.getElementById('switch');  
                 switchEle.checked = useWipoSwitch == "use"?true:false;
 
@@ -86,6 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var saveButton = document.getElementById('saveButton');  
                 saveButton.addEventListener('click', function() {  
                     userConfig = {
+                        autoNextPage: autoNextEle.checked?'Y':'N',
                         useWipoSwitch: switchEle.checked?'use':'notUse',
                         shipsFromTypes: [fbaEle.checked?'FBA':'',fbmEle.checked?'FBM':'',amzEle.checked?'AMZ':''],
                         soldByNumber: sellerCountEle.value,
