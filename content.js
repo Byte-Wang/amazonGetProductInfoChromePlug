@@ -1166,15 +1166,23 @@ function getProductTitle(callback, doc = document){
 }
 
 function getProductImage(callback, doc = document){
-    
+
     const container = doc.getElementById('imgTagWrapperId');
-    FXLog('[getProductImage]container',container);
+    
     // 找到img标签
     if (container) {
         const img = container.querySelector('img');
-        FXLog('[getProductImage]img',img);
         if (img) {
-            callback(img.src);
+            let imgUrl = img.getAttribute('data-old-hires');
+            if (!imgUrl) {
+                imgUrl = img.src;
+            }
+            FXLog('[getProductImage] imgUrl',imgUrl);
+            if (imgUrl) {
+                callback(imgUrl);
+            } else {
+                callback("");
+            }
         } else {
             callback("");
         }
