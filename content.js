@@ -598,19 +598,23 @@ function getShipsFrom(callback,doc = document) {
     // 使用querySelectorAll查找所有span元素，然后遍历它们  
     const spans = container.querySelectorAll('span');  
     let ShipsFrom = "其他";
+    let shipFormText = "";
     spans.forEach(span => {  
         // 检查span的文本内容是否符合条件  
         const text = span.textContent.trim();  
         FXLog("[test] getShipsFrom, 找到元素："+text)
-        if (text == "Amazon" || text == "Amazon " + brand ) {  
+        if (ShipsFrom == "其他" && (text == "Amazon" || text == "Amazon " + brand)) {  
             ShipsFrom = `FBA(${text})`;
-        } else if (text.indexOf('Amazon') != -1) {  
+        } else if (ShipsFrom == "其他" && text.indexOf('Amazon') != -1) {  
             ShipsFrom = `AMZ(${text})`;
-        } else {
-            ShipsFrom = `FBM(${text})`;
         }
+        shipFormText = text;
     });
-    
+
+    if (ShipsFrom == "其他") {
+        ShipsFrom = `FBM(${shipFormText})`;
+    }
+
     callback(ShipsFrom);
 }  
 
