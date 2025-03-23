@@ -133,7 +133,7 @@ function checkBrand(brand,callback){
     }
 }
 
-function checkBrandWithAll(brand, callback){
+function checkBrandWithAll(brand, retryTimes, callback){
     let result = {
         trademarkOffice: null,
         wipo: null,
@@ -143,6 +143,53 @@ function checkBrandWithAll(brand, callback){
     let checkBoth = ()=>{
         if (result.wipo != null && result.trademarkOffice != null) {
             FXLog("查询品牌状态，两个渠道都查询完成， result：",result)
+
+            FXLog("[test]查询品牌结果：",data);
+            let data = result;
+            
+            let state = "";
+            let SY = "",SN = "",WY = "",WN = "";
+            if (data.trademarkOffice.count != undefined) {
+                if (data.trademarkOffice.count > 0) {
+                    SY = "<span class=\"feixun_plug_flag_red\">已注册"+"（T:" + data.trademarkOffice.count+")</span>";
+                } else {
+                    SN = "<span class=\"feixun_plug_flag_green\">未注册（T:0）</span>";
+                }
+            } 
+
+            if (data.wipo.count != undefined) {
+                if (data.wipo.count > 0) {
+                    WY = "<span class=\"feixun_plug_flag_red\">已注册"+"（G:" + data.wipo.count+")</span>";
+                } else {
+                    WN = "<span class=\"feixun_plug_flag_green\">未注册（G:0）</span>";
+                }
+            } 
+
+            if (window.feixunUserConfig.useWipoSwitch == 'use') {
+                if (SY != "" || SN != "" || WY != "" || WN != "") {
+                    state = SY + SN + WY + WN;
+                } else {
+                    state = "查询失败";
+                }
+            } else {
+                if (SY != "") {
+                    state = SY;
+                } else if (WY != "") {
+                    state = WY;
+                } else if (SN != "") {
+                    state = SN
+                } else if (WN != "") {
+                    state = WN
+                } else {
+                    state = "查询失败";
+                }
+            }
+
+            if (state == "查询失败" && retryTimes > 0) {
+                checkBrandWithAll(brand, retryTimes - 1, callback);
+                return;
+            }
+
             callback(result);
         }
     };
@@ -871,11 +918,11 @@ function getSizeInfo4(callback,doc = document){
     var height = null;var width = null;var weight = null;
     ps.forEach(p => {  
         
-        const trimmedStr = p.textContent.trim();
+        const trimmedStr = p.innerHTML;
 
         FXLog("p：",trimmedStr);
 
-        const heightReg = /Height:(.*)$/s;   
+        const heightReg =  /Height:\s*([^<\s]+)/s; // /Height:(.*)$/s;   
         const heightMatch = trimmedStr.match(heightReg);  
         if (heightMatch && height == null) {
             height = heightMatch[1].trim();
@@ -883,7 +930,7 @@ function getSizeInfo4(callback,doc = document){
             FXLog("hhh：",height);
         }
 
-        const WidthReg = /Width:(.*)$/s;   
+        const WidthReg = /Width:\s*([^<\s]+)/s; ///Width:(.*)$/s;   
         const WidthMatch = trimmedStr.match(WidthReg);  
         if (WidthMatch && width == null) {
             width = WidthMatch[1].trim();
@@ -891,7 +938,7 @@ function getSizeInfo4(callback,doc = document){
             FXLog("wwww",width);
         }
 
-        const WeightReg = /Weight:(.*)$/s;   
+        const WeightReg = /Weight:\s*([^<\s]+)/s;   
         const WeightMatch = trimmedStr.match(WeightReg);  
         if (WeightMatch && weight == null) {
             weight = WeightMatch[1].trim();
@@ -1438,7 +1485,7 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
                     }
                 });
             } else {
-                checkBrandWithAll(brand,checkBrandCallback);
+                checkBrandWithAll(brand,3,checkBrandCallback);
             }
         } else {
             checkPduductInfoIsComplete(currentAsinCache,asin,'brand','');
