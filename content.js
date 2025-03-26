@@ -143,8 +143,6 @@ function checkBrandWithAll(brand, retryTimes, callback){
     let checkBoth = ()=>{
         if (result.wipo != null && result.trademarkOffice != null) {
             FXLog("查询品牌状态，两个渠道都查询完成， result：",result)
-
-            FXLog("[test]查询品牌结果：",data);
             let data = result;
             
             let state = "";
@@ -465,6 +463,12 @@ function addStyle(){
         box-sizing: border-box; \
         line-height: 30px;\
         }\
+        .feixun_plug_last_load_time{\
+            padding-top: 10px;\
+            text-align: center;\
+            font-size: larger;\
+            color: #aba7a7;\
+        }\
         .feixun_plug_mask{\
             position: absolute;\
             background: rgba(0, 0, 0, 0.7);\
@@ -539,7 +543,9 @@ function getMainContentView(asin = "") {
                                         <div class=\"feixun_plug_col-6\" ><b>上架时间：</b><span id=\"feixun_plug_AvailableDate"+idSubfix+"\"></span></div>\
                                         <div class=\"feixun_plug_col-6\" ><b>ASIN类型：</b><span id=\"feixun_plug_asinType"+idSubfix+"\"></span></div>\
                                         <div class=\"feixun_plug_col-6\" ><b>评论状态：</b><span id=\"feixun_plug_reviewType"+idSubfix+"\"></span></div>\
-                                    </div>";
+                                    </div>\
+                                    <div class=\"feixun_plug_last_load_time\" id=\"feixun_plug_last_load_time"+idSubfix+"\"></div>\
+                                    ";
     return contentView;
 }
 
@@ -1396,9 +1402,35 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
         const asin = isList ? listAsin : getASIN();
 
         let currentAsinCache = cacheProductInfo[asin];
+        FXLog("获取缓存",result);
         if (currentAsinCache) {
             const nowTime = Date.now();
             const cacheTime = currentAsinCache['cacheTime'];
+
+            FXLog("有缓存", cacheTime);
+            if (cacheTime){
+                const date = new Date(cacheTime);
+                const formattedTime = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+                const now = new Date();
+                const diffTime = Math.abs(now - date);
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                const diffHours = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const diffMinutes = Math.floor((diffTime % (1000 * 60 * 60)) / (1000 * 60));
+                
+                let timeText = "";
+                if (diffDays > 0) {
+                    timeText = `${diffDays}天前`;
+                } else if (diffHours > 0) {
+                    timeText = `${diffHours}小时前`;
+                } else if (diffMinutes > 0) {
+                    timeText = `${diffMinutes}分钟前`;
+                } else {
+                    timeText = "刚刚";
+                }
+                
+                updateInfo("feixun_plug_last_load_time"+idSubfix, timeText + "加载过该数据" + "("+formattedTime+")");
+            }
+
             // 缓存数据超过3天忽略
             if ((nowTime - cacheTime) > 3 * 24 * 60 * 60 * 1000) {
                 currentAsinCache = null;
@@ -1683,7 +1715,6 @@ function checkPduductInfoIsComplete(cahce, asin, type, value){
     asinInfo[type] = value;
     window.feixunPlugTempRroductInfo[asin] = asinInfo;
     // FXLog('['+asin+']更新临时缓存的产品信息');
-
 
     const allKeys = Object.keys(asinInfo);
     const allType = ['asinIsExist','brand','brandGCount','brandTCount','amount','totalFba','profitRate','soldBy','soldByNumber','ShipsFrom','rank','category','weight','size','AvailableDate','ReviewNumber','asinType','reviewType','productTitle','productImage'];
