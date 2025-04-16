@@ -734,17 +734,17 @@ function getBestSellersRank(callback,doc = document){
         spans.forEach(span => {  
             // 检查span的文本内容是否符合条件  
             const text = span.textContent.trim().replace(",","");
-            // FXLog("尝试解析排名："+text);
+            FXLog("尝试解析排名："+text);
             // 正则表达式提取排名  
-            let rankRegex = /Rank:\s*(\d+)(?=\sin)/;  
+            let rankRegex = /Rank:\s*#?(\d+)(?=\sin)/;  
             let rankMatch = text.match(rankRegex);  
             let rank = rankMatch ? rankMatch[1] : null; // 匹配到的第一个捕获组即为排名  
-            // FXLog("rankMatch：",rankMatch);
+            FXLog("排名解析结果",rankMatch);
             // 正则表达式提取分类名  
             let categoryRegex = /Best Sellers Rank:[^(]*\bin\s+([^()]+)/;  
             let categoryMatch = text.match(categoryRegex);  
             let category = categoryMatch ? categoryMatch[1] : null; // 匹配到的第一个捕获组即为分类名  
-            // FXLog("categoryMatch:",categoryMatch);
+            FXLog("分类解析结果:",categoryMatch);
             if (rank && category && !finded) {
                 finded = true;
                 result = {
@@ -886,8 +886,13 @@ function getSizeInfo(callback,doc = document){
         const trimmedStr = span.textContent.trim();
         FXLog("尝试解析尺寸重量：",trimmedStr);
         const regex = /(Package Dimensions|Product dimensions).*?:.*?(\d.*?);(.*)$/s;   
-        const match = trimmedStr.match(regex);  
-        FXLog("解析结果：",match);
+        const regex2 = /(.*?)(\d.*?);(.*)$/s;  
+        let match = trimmedStr.match(regex);  
+        let match2 = trimmedStr.match(regex2);  
+        if (!match && match2) {
+            match = match2;
+        }
+        FXLog("解析结果1：",match);
         if (match) {
             const dimensions = match[2].trim();  
             const weight = match[3].trim();  
