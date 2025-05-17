@@ -882,13 +882,20 @@ function getSizeInfo(callback,doc = document){
     // 使用querySelectorAll查找所有span元素，然后遍历它们  
     const spans = container.querySelectorAll('span');  
     let finded = false;
+    let onlyWeight = null;
     spans.forEach(span => {  
         const trimmedStr = span.textContent.trim();
         FXLog("尝试解析尺寸重量：",trimmedStr);
         const regex = /(Package Dimensions|Product dimensions).*?:.*?(\d.*?);(.*)$/s;   
-        const regex2 = /(.*?)(\d.*?);(.*)$/s;  
+        const regex2 = /(.*?)(\d.*?);(\d+(?:\.\d+)?[a-zA-Z]{0,10})$/s; 
+        const weightRegex = /.*(weight).*?:.*?(\d.*?)$/s
+        
         let match = trimmedStr.match(regex);  
         let match2 = trimmedStr.match(regex2);  
+        let weightMatch = trimmedStr.match(weightRegex);  
+        if (weightMatch) {
+            onlyWeight = weightMatch[2];
+        }
         if (!match && match2) {
             match = match2;
         }
@@ -910,6 +917,13 @@ function getSizeInfo(callback,doc = document){
     if (finded) {
         callback(result);
     } else {
+        if (onlyWeight) {
+            callback({
+                size: "",
+                weight: onlyWeight
+            });
+            return;
+        }
         FXLog("每获取到尺寸信息，尝试方法2");
         getSizeInfo2(callback,doc);
     }

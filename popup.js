@@ -135,8 +135,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 var captchaId = generateRandomId();
                 const feixunplugCaptchaImg = document.getElementById("feixunplugCaptchaImg");
-                feixunplugCaptchaImg.src = "http://119.91.217.3:8087/index.php/api/common/captcha?id="+captchaId;
+                const maxRetries = 5; // 最大重试次数
+                let retryCount = 0;
 
+                function loadCaptcha() {
+                    feixunplugCaptchaImg.src = "http://119.91.217.3:8087/index.php/api/common/captcha?id="+captchaId;
+                }
+
+                feixunplugCaptchaImg.onerror = function() {
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        captchaId = generateRandomId(); // 生成新的验证码 ID
+                        loadCaptcha();
+                    } else {
+                        console.error('验证码图片获取失败，已达到最大重试次数');
+                    }
+                };
+
+                loadCaptcha();
                 
                 
                 if (loginInfo && loginInfo.username &&  loginInfo.password) {
