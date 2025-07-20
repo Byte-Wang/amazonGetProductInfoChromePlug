@@ -1707,8 +1707,12 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
         },detailDoc);
 
         getSizeInfo((response)=>{
+            if (response.weight.length < 30) {
+                updateInfo("feixun_plug_weight"+idSubfix,response.weight);
+            } else {
+                console.log('重量信息获取异常：response:', response);
+            }
             // updateInfo("feixun_plug_size","<b>尺寸:</b>"+response.size);
-            updateInfo("feixun_plug_weight"+idSubfix,response.weight);
             checkPduductInfoIsComplete(currentAsinCache,asin,'weight',response.weight);
             checkPduductInfoIsComplete(currentAsinCache,asin,'size',response.size);
         },detailDoc);
