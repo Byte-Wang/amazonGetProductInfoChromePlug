@@ -2158,6 +2158,171 @@ function parserToSerchListView(){
     }); 
 }
 
+function checkVersion(){
+    chrome.storage.sync.get('feixunplugchecktime',function(feixunplugchecktime){
+        if (feixunplugchecktime && feixunplugchecktime.feixunplugchecktime) { 
+            const tenMinutesInMilliseconds = 60 * 60 * 1000;
+            const currentTime = Date.now();
+            const timeDifference = currentTime - feixunplugchecktime.feixunplugchecktime;
+            if (timeDifference < tenMinutesInMilliseconds) {
+                FXLog("60分钟内不重复检查版本");
+                return;
+            }
+        }
+        FXLog("开始检查版本");
+        checkVersionIsAvalible((res)=>{
+            if (res && res.data && res.data.code == 200) {
+                chrome.storage.sync.set({'feixunplugchecktime': Date.now()},function (res) {
+                    console.log('校验时间保存成功',res);
+                });
+            } else {
+                chrome.storage.sync.set({'feixunplugchecktime': 0},function () {
+
+                });
+               const mainContentViews = document.getElementsByClassName("feixun_plug_container");
+               for (let i = 0; i < mainContentViews.length; i++) {
+                    const element = mainContentViews[i];
+                    let state = "接口请求异常";
+                    if (res && res.data && res.data.desc) {
+                        state = res.data.desc;
+                    } else if (res && res.desc) {
+                        state = res.desc;
+                    } else if (res && res.msg) {
+                        state = res.msg;
+                    }
+
+                    const maskView = document.createElement('div');
+                    maskView.className="feixun_plug_mask";
+                    maskView.innerHTML = "<h2 style=\"color:#fff;\">" + state + "</h2>";
+
+                    element.appendChild(maskView);
+                }
+            }
+        });
+    });
+}
+
+// 店铺详情页
+function isSellerView() {
+    const url = new URL(window.location.href);
+    const pathname = url.pathname;
+    const searchParams = url.searchParams;
+    const sellerNameElement = document.getElementById('seller-name');
+
+    // 检查路径是否包含 /sp，URL 参数是否包含 seller，以及是否存在 id 为 seller-name 的元素
+    if (pathname.includes('/sp') && searchParams.has('seller') && sellerNameElement) {
+        return true;
+    }
+    return false;
+}
+
+function formatTime(timestamp){
+    const beijingDate = new Date(timestamp);
+    const options = {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    };
+    const beijingTime = beijingDate.toLocaleString('zh-CN', options);
+    return beijingTime;
+}
+
+function setSellerSpan(title,type, fromDiv){
+    var sellerLinkDiv = document.getElementById('seller-info-storefront-link');
+    if (fromDiv) {
+        sellerLinkDiv = fromDiv;
+    }
+    if (sellerLinkDiv) {
+        const span = document.createElement('span');
+        span.textContent = title;
+        if (type == 0) {
+            span.style.backgroundColor = '#ec4444';
+        } else {
+            span.style.backgroundColor = '#06b476';
+        }
+        span.className = 'feixunSellerTip';
+        span.style.color = 'white';
+        span.style.borderRadius = '4px';
+        span.style.padding = '5px';
+        sellerLinkDiv.appendChild(span);
+    }
+}
+
+function checkSellerReviewRecord() {
+    let region = getRegion();
+    const url = new URL(window.location.href);
+    const sellerId = url.searchParams.get('seller');
+    const sellerNameDiv = document.getElementById('seller-name');
+    const sellerName = sellerNameDiv ? sellerNameDiv.textContent.trim() : '';
+    const timestamp = Date.now();
+
+    if (!sellerId) {
+        return;
+    }
+
+    const sellerKey = `feixunSellerRecord-${sellerId}`;
+    const newRecord = {
+        [sellerKey]: {
+            id: sellerId,
+            region: region,
+            sellerName: sellerName,
+            timestamp: timestamp
+        }
+    };
+
+    chrome.storage.sync.get(sellerKey, function(lastRecord) { 
+        if (lastRecord && lastRecord[sellerKey]) {
+            FXLog("[seller] 存在浏览记录：", lastRecord);
+            const lastTimestamp = lastRecord[sellerKey].timestamp;
+            setSellerSpan(`上一次浏览时间：${formatTime(lastTimestamp)}`,0);
+        } else {
+            setSellerSpan(`没有浏览过`,1);
+        }
+
+        FXLog("[seller] 添加卖家浏览记录：", newRecord);
+        chrome.storage.sync.set(newRecord, function() {
+            FXLog('数据已成功保存到 chrome.storage');
+        });
+    });
+}
+
+function loopCheckSellerList(){ 
+    const intervalId = setInterval(() => {
+        const aodOfferList = document.getElementById('aod-offer-list');
+        if (aodOfferList) {
+            const soldByDivs = aodOfferList.querySelectorAll('div#aod-offer-soldBy');
+            soldByDivs.forEach(div => {
+                const aTag = div.querySelector('a');
+                if (aTag) {
+                    const hasFeixunSellerTip = aTag.parentNode.querySelector('span.feixunSellerTip') !== null;
+                    if (hasFeixunSellerTip) {
+                        return;
+                    }
+                        
+                    const url = new URL(aTag.href);
+                    const sellerId = url.searchParams.get('seller');
+                    if (sellerId) {
+                        const sellerKey = `feixunSellerRecord-${sellerId}`;
+                        chrome.storage.sync.get(sellerKey, function(lastRecord) { 
+                            if (lastRecord && lastRecord[sellerKey]) { 
+                                FXLog("[seller] 存在浏览记录：", lastRecord); 
+                                const lastTimestamp = lastRecord[sellerKey].timestamp; 
+                                setSellerSpan(`上一次浏览时间：${formatTime(lastTimestamp)}`,0,aTag.parentNode); 
+                            } else { 
+                                setSellerSpan(`没有浏览过`,1,aTag.parentNode); 
+                            }
+                        });
+                    }
+                }
+            });
+        }
+    }, 2000);
+}
+
 function mainAction(){
 
     chrome.storage.sync.get('feixunUserConfig', function(userConfig) { 
@@ -2174,8 +2339,12 @@ function mainAction(){
         window.feixunPlugVersion = "20241019050933";
 
         if (hasTitleFeatureDiv()) {
+            FXLog("页面检测：商品详情页页面");
             parserToTitleFeatureDiv(3);
+            checkVersion();
+            loopCheckSellerList();
         } else if (hasSearchResultDiv()) {
+            FXLog("页面检测：商品列表页面");
             parserToSerchListView();
             let curHref = window.location.href;
             setInterval(() => {
@@ -2188,50 +2357,13 @@ function mainAction(){
                     curHref = window.location.href;
                 }
             }, 2000);
+            checkVersion();
+        } else if (isSellerView()) {
+            FXLog("页面检测：店铺详情页面");
+            checkSellerReviewRecord();
         } else {
             FXLog("[test] 未知页面");
         }
-
-        chrome.storage.sync.get('feixunplugchecktime',function(feixunplugchecktime){
-            if (feixunplugchecktime && feixunplugchecktime.feixunplugchecktime) { 
-                const tenMinutesInMilliseconds = 60 * 60 * 1000;
-                const currentTime = Date.now();
-                const timeDifference = currentTime - feixunplugchecktime.feixunplugchecktime;
-                if (timeDifference < tenMinutesInMilliseconds) {
-                    return;
-                }
-            }
-            checkVersionIsAvalible((res)=>{
-                if (res && res.data && res.data.code == 200) {
-                    chrome.storage.sync.set({'feixunplugchecktime': Date.now()},function (res) {
-                        console.log('校验时间保存成功',res);
-                    });
-                } else {
-                    chrome.storage.sync.set({'feixunplugchecktime': 0},function () {
-    
-                    });
-                   const mainContentViews = document.getElementsByClassName("feixun_plug_container");
-                   for (let i = 0; i < mainContentViews.length; i++) {
-                        const element = mainContentViews[i];
-                        let state = "接口请求异常";
-                        if (res && res.data && res.data.desc) {
-                            state = res.data.desc;
-                        } else if (res && res.desc) {
-                            state = res.desc;
-                        } else if (res && res.msg) {
-                            state = res.msg;
-                        }
-    
-                        const maskView = document.createElement('div');
-                        maskView.className="feixun_plug_mask";
-                        maskView.innerHTML = "<h2 style=\"color:#fff;\">" + state + "</h2>";
-    
-                        element.appendChild(maskView);
-                    }
-                }
-            });
-        });
-        
     });
     
 }
