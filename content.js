@@ -57,11 +57,12 @@ function getASIN() {
 }  
 
 function checkVersionIsAvalible(callback,retryTimes = 3){
+    FXLog("[checkVersionIsAvalible] 没有token，未登录：");
     chrome.storage.sync.get('userInfo', function(result) {
-        FXLog("[test] 获取用户信息：",result);
+        FXLog("[checkVersionIsAvalible] 获取用户信息：",result);
         const userInfo = result.userInfo;
         if (!userInfo || !userInfo.token) {
-            FXLog("[test] 没有token，未登录：");
+            FXLog("[checkVersionIsAvalible] 没有token，未登录：");
             callback({code: 401, desc: "请先登录！"});
             return;
         }
@@ -74,7 +75,7 @@ function checkVersionIsAvalible(callback,retryTimes = 3){
             token: userInfo.token,
             data: {}
         },(response)=> {
-            FXLog("[test] 插件可用状态：",response);
+            FXLog("[checkVersionIsAvalible] 插件可用状态：",response);
             if (response && response.data && response.data.code == 200) {
                 callback(response);
             } else if (retryTimes > 0) {
@@ -2330,7 +2331,8 @@ function loopCheckSellerList(){
                     const url = new URL(aTag.href);
                     const sellerId = url.searchParams.get('seller');
                     if (sellerId) {
-                        const sellerKey = `feixunSellerRecord-${sellerId}`;
+                        let region = getRegion();
+                        const sellerKey = `feixunSellerRecord-${region}-${sellerId}`;
                         chrome.storage.sync.get(sellerKey, function(lastRecord) { 
                             if (lastRecord && lastRecord[sellerKey]) { 
                                 FXLog("[seller] 存在浏览记录：", lastRecord); 
