@@ -2360,7 +2360,7 @@ function mainAction(){
             reviewNumber: 3,
         };
 
-        window.feixunPlugVersion = "20241019050933";
+        window.feixunPlugVersion = "20250825214500";
         loopCheckSellerList();
         recordSellerResultListIsReview();
         if (hasTitleFeatureDiv()) {
