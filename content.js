@@ -2215,6 +2215,18 @@ function isSellerView() {
     }
     return false;
 }
+         
+function isSellerReultListView() {
+    const url = new URL(window.location.href);
+    const pathname = url.pathname;
+    const searchParams = url.searchParams;
+    let titleFeatureDiv = document.getElementById("s-skipLinkTargetForMainSearchResults");
+
+    if (pathname.includes('/s') && searchParams.has('me') && titleFeatureDiv) {
+        return true;
+    }
+    return false;
+}
 
 function formatTime(timestamp){
     const beijingDate = new Date(timestamp);
@@ -2252,28 +2264,16 @@ function setSellerSpan(title,type, fromDiv){
     }
 }
 
-function checkSellerReviewRecord() {
+function checkSellerViewIsReview() {
     let region = getRegion();
     const url = new URL(window.location.href);
     const sellerId = url.searchParams.get('seller');
     const sellerNameDiv = document.getElementById('seller-name');
     const sellerName = sellerNameDiv ? sellerNameDiv.textContent.trim() : '';
-    const timestamp = Date.now();
-
     if (!sellerId) {
         return;
     }
-
-    const sellerKey = `feixunSellerRecord-${sellerId}`;
-    const newRecord = {
-        [sellerKey]: {
-            id: sellerId,
-            region: region,
-            sellerName: sellerName,
-            timestamp: timestamp
-        }
-    };
-
+    const sellerKey = `feixunSellerRecord-${region}-${sellerId}`;
     chrome.storage.sync.get(sellerKey, function(lastRecord) { 
         if (lastRecord && lastRecord[sellerKey]) {
             FXLog("[seller] 存在浏览记录：", lastRecord);
@@ -2282,11 +2282,35 @@ function checkSellerReviewRecord() {
         } else {
             setSellerSpan(`没有浏览过`,1);
         }
+    });
+}
 
-        FXLog("[seller] 添加卖家浏览记录：", newRecord);
-        chrome.storage.sync.set(newRecord, function() {
-            FXLog('数据已成功保存到 chrome.storage');
-        });
+function recordSellerResultListIsReview() {
+    if (!isSellerReultListView()) {
+        return;
+    }
+    FXLog("页面检测：商家产品列表页");
+    let region = getRegion();
+    const url = new URL(window.location.href);
+    const sellerId = url.searchParams.get('me');
+    const timestamp = Date.now();
+
+    if (!sellerId) {
+        return;
+    }
+
+    const sellerKey = `feixunSellerRecord-${region}-${sellerId}`;
+    const newRecord = {
+        [sellerKey]: {
+            id: sellerId,
+            region: region,
+            timestamp: timestamp
+        }
+    };
+
+    FXLog("[seller] 添加卖家浏览记录：", newRecord);
+    chrome.storage.sync.set(newRecord, function() {
+        FXLog('数据已成功保存到 chrome.storage');
     });
 }
 
@@ -2337,12 +2361,12 @@ function mainAction(){
         };
 
         window.feixunPlugVersion = "20241019050933";
-
+        loopCheckSellerList();
+        recordSellerResultListIsReview();
         if (hasTitleFeatureDiv()) {
             FXLog("页面检测：商品详情页页面");
             parserToTitleFeatureDiv(3);
             checkVersion();
-            loopCheckSellerList();
         } else if (hasSearchResultDiv()) {
             FXLog("页面检测：商品列表页面");
             parserToSerchListView();
@@ -2359,11 +2383,11 @@ function mainAction(){
             }, 2000);
             checkVersion();
         } else if (isSellerView()) {
-            FXLog("页面检测：店铺详情页面");
-            checkSellerReviewRecord();
-        } else {
-            FXLog("[test] 未知页面");
+            FXLog("页面检测：店铺详情页");
+            checkSellerViewIsReview();
         }
+
+        
     });
     
 }
