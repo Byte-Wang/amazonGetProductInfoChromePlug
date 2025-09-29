@@ -320,17 +320,17 @@ function checkAsin(asin,callback){
 
 function getFBA(asin, callback) {
     chrome.storage.sync.get('userInfo', function(result) {
-        FXLog("[test] 获取用户信息：",result);
+        FXLog("[fba] 获取用户信息：",result);
         const userInfo = result.userInfo;
         if (!userInfo || !userInfo.token) {
-            FXLog("[test] 没有token，未登录：");
+            FXLog("[fba] 没有token，未登录：");
             callback({desc: "请先登录！"});
             return;
         }
         let region = getRegion();
-        FXLog("[test] 当前区域："+region);
+        FXLog("[fba] 当前区域："+region);
 
-        FXLog("[test] 调用getFba请求");
+        FXLog("[fba] 调用getFba请求");
         let url = 'http://119.91.217.3:8087/index.php/admin/index/getFBA?version=' + window.feixunPlugVersion + '&region='+region+'&asin='+asin;
         chrome.runtime.sendMessage({
             action: "makeCorsRequest",
@@ -338,7 +338,7 @@ function getFBA(asin, callback) {
             token: userInfo.token,
             data: {}
         },(response)=> {
-            FXLog("[test] 调用getFba请求结果",response);
+            FXLog("[fba] 调用getFba请求结果",response);
             if (response.code == 1 && response.data.code == 200 && response.data.result.status == 1) {
                 let content = response.data.result.content;
                 let cost = (content.fbaFee+content.storageFee+content.referralFee).toFixed(2); // 成本：亚马逊运费+亚马逊仓储费+亚马逊佣金
@@ -347,10 +347,15 @@ function getFBA(asin, callback) {
                 callback({
                     amount: content.amount+"("+content.currencyCode+")",
                     totalFBA: cost + "("+content.currencyCode+")",
-                    profitRate: profitRate + "%"
+                    profitRate: profitRate + "%",
+                    desc: response.data.desc
                 });
             } else {
-                callback(response);
+                if (response && response.data && response.data.desc) {
+                    callback({desc: response.data.desc});
+                } else {
+                    callback(response);
+                }
             }
         });
 
@@ -1622,7 +1627,9 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
 
 
            const getFBACallback = (response)=>{
+                FXLog("[fba]["+asin+"] 查询fba结果：",response.desc);
                 if (response.amount) {
+                    FXLog("[fba]["+asin+"] 返回值有效，展示数据");
                     var classType = "feixun_plug_flag_green";
                     if (parseFloat(response.amount) < window.feixunUserConfig.amount) {
                         classType = "feixun_plug_flag_red"
@@ -1641,14 +1648,17 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
                     checkPduductInfoIsComplete(currentAsinCache,asin,'totalFba',response.totalFBA);
                     checkPduductInfoIsComplete(currentAsinCache,asin,'profitRate',response.profitRate);
                 } else if (response.desc) {
-                    updateInfo("feixun_plug_amount"+idSubfix,data.desc);
-                    updateInfo("feixun_plug_totalFba"+idSubfix,data.desc);
-                    updateInfo("feixun_plug_profitRate"+idSubfix,data.desc);
+                    FXLog("[fba]["+asin+"] 有报错信息，显示报错信息");
+
+                    updateInfo("feixun_plug_amount"+idSubfix,"查询失败");
+                    updateInfo("feixun_plug_totalFba"+idSubfix,"查询失败");
+                    updateInfo("feixun_plug_profitRate"+idSubfix,"查询失败");
 
                     checkPduductInfoIsComplete(currentAsinCache,asin,'amount',0);
                     checkPduductInfoIsComplete(currentAsinCache,asin,'totalFba',0);
                     checkPduductInfoIsComplete(currentAsinCache,asin,'profitRate',0);
-                } else if (response.desc) {
+                } else {
+                    FXLog("[fba]["+asin+"] 显示查询失败");
                     updateInfo("feixun_plug_amount"+idSubfix,"查询失败");
                     updateInfo("feixun_plug_totalFba"+idSubfix,"查询失败");
                     updateInfo("feixun_plug_profitRate"+idSubfix,"查询失败");
@@ -1659,12 +1669,14 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
                 }
             };
             if (currentAsinCache) {
+                FXLog("[fba] 从缓存返回：",currentAsinCache);
                 getFBACallback({
                     'amount': currentAsinCache['amount'],
                     'profitRate': currentAsinCache['profitRate'],
                     'totalFBA': currentAsinCache['totalFba']
                 });
             } else {
+                FXLog("[fba]["+asin+"] 开始查询fba");
                 getFBA(asin,getFBACallback);
             }
             
