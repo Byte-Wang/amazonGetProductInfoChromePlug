@@ -395,7 +395,7 @@ function isProductSearchPage() {
     if (hostname.includes('sellercentral.amazon') && pathname.includes('product-search')) {
         return true;
     }
-    return false;
+    return true;
 }
 
 function BgCheckMain(){
@@ -733,6 +733,7 @@ function initBatchCheckModal() {
   // 创建导出按钮
   const exportBtn = document.createElement('button');
   exportBtn.id = 'bg-batch-check-export-btn';
+  exportBtn.style.marginTop = '15px';
   exportBtn.textContent = '导出CSV';
   exportBtn.style.padding = '8px 16px';
   exportBtn.style.backgroundColor = '#ccc'; // 初始为灰色
