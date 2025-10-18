@@ -399,22 +399,95 @@ function isProductSearchPage() {
 }
 
 function BgCheckMain(){
-  // 检查当前页面是否是产品搜索页面
-  if(!isProductSearchPage()){
-    return;
-  }
-  
-  // 检查按钮是否已存在，避免重复创建
-  if(document.getElementById('bg-batch-check-btn')){
-    return;
-  }
-  
-  // 创建浮动按钮
-  createFloatingButton();
+    // 检查当前页面是否是产品搜索页面
+    if(!isProductSearchPage()){
+      return;
+    }
+
+     // 检查按钮是否已存在，避免重复创建
+    if(document.getElementById('bg-batch-check-btn')){
+      return;
+    }
+
+    checkVersionIsAvalible((res)=>{
+        if (res && res.data && res.data.code == 200) {
+            chrome.storage.sync.set({'feixunplugchecktime': Date.now()},function (res) {
+                console.log('校验时间保存成功',res);
+            });
+                    
+            // 创建浮动按钮
+            createFloatingButton(true,"");
+        } else {
+            chrome.storage.sync.set({'feixunplugchecktime': 0},function () {
+
+            });
+            let state = "权限校验失败";
+            if (res && res.data && res.data.desc) {
+                state = res.data.desc;
+            } else if (res && res.desc) {
+                state = res.desc;
+            } else if (res && res.msg) {
+                state = res.msg;
+            }
+            createFloatingButton(false,state);
+        }
+    });
+    
+
 }
 
+
+function FXLog(...args) {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // 注意月份是从0开始的
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
+  
+    const datatime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+
+    console.log(`[${datatime}][feixunLog]`,...args);
+}
+
+function checkVersionIsAvalible(callback,retryTimes = 3){
+    FXLog("[checkVersionIsAvalible] 没有token，未登录：");
+    chrome.storage.sync.get('userInfo', function(result) {
+        FXLog("[checkVersionIsAvalible] 获取用户信息：",result);
+        const userInfo = result.userInfo;
+        if (!userInfo || !userInfo.token) {
+            FXLog("[checkVersionIsAvalible] 没有token，未登录：");
+            callback({code: 401, desc: "请先登录！"});
+            return;
+        }
+        
+       
+        let url = 'http://119.91.217.3:8087/index.php/admin/index/checkChromePlugVersion?version=' + window.feixunPlugVersion;
+        chrome.runtime.sendMessage({
+            action: "makeCorsRequest",
+            url: url,
+            token: userInfo.token,
+            data: {}
+        },(response)=> {
+            FXLog("[checkVersionIsAvalible] 插件可用状态：",response);
+            if (response && response.data && response.data.code == 200) {
+                callback(response);
+            } else if (retryTimes > 0) {
+                checkVersionIsAvalible(callback, retryTimes - 1);
+            } else {
+                callback(response);
+            }
+             
+        });
+
+    });
+}
+  
+
 // 创建浮动按钮函数
-function createFloatingButton(){
+function createFloatingButton(canUse,reason){
   // 创建按钮元素
   const btn = document.createElement('div');
   btn.id = 'bg-batch-check-btn';
@@ -424,7 +497,7 @@ function createFloatingButton(){
   btn.style.right = '10px';
   btn.style.top = '50%';
   btn.style.transform = 'translateY(-50%)';
-  btn.style.width = '120px';
+  btn.style.width = '150px';
   btn.style.height = '50px';
   btn.style.backgroundColor = '#e3f2fd'; // 浅蓝色背景
   btn.style.color = '#1976d2';
@@ -441,7 +514,7 @@ function createFloatingButton(){
   
   // 创建按钮文本容器
   const btnText = document.createElement('span');
-  btnText.textContent = '批量BG查询';
+  btnText.textContent = canUse ? '批量BG查询' : reason;
   btnText.style.flex = '1';
   btnText.style.textAlign = 'center';
   btnText.style.marginRight = '15px';
@@ -485,6 +558,10 @@ function createFloatingButton(){
   
   // 添加点击事件
   btn.addEventListener('click', function(e) {
+    if (!canUse) {
+      alert(`功能不可用：${reason}`);
+      return;
+    }
     // 如果点击的是拖动把手，则不触发点击事件
     if (e.target === dragHandle || dragHandle.contains(e.target)) {
       return;
@@ -691,6 +768,119 @@ function initBatchCheckModal() {
   textarea.style.fontSize = '14px';
   textarea.style.resize = 'vertical';
   
+  // 创建导入Excel按钮
+  const importBtn = document.createElement('button');
+  importBtn.id = 'bg-batch-check-import-btn';
+  importBtn.textContent = '导入Excel';
+  importBtn.style.marginTop = '15px';
+  importBtn.style.marginRight = '10px';
+  importBtn.style.padding = '10px 20px';
+  importBtn.style.backgroundColor = '#4caf50';
+  importBtn.style.color = '#fff';
+  importBtn.style.border = 'none';
+  importBtn.style.borderRadius = '4px';
+  importBtn.style.fontSize = '14px';
+  importBtn.style.cursor = 'pointer';
+  importBtn.style.fontWeight = 'bold';
+  importBtn.style.transition = 'background-color 0.3s';
+  
+  // 添加导入按钮悬停效果
+  importBtn.addEventListener('mouseover', function() {
+    importBtn.style.backgroundColor = '#45a049';
+  });
+  
+  importBtn.addEventListener('mouseout', function() {
+    importBtn.style.backgroundColor = '#4caf50';
+  });
+  
+  // 创建文件输入元素（隐藏）
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.xlsx,.xls';
+  fileInput.style.display = 'none';
+  document.body.appendChild(fileInput);
+  
+  // 导入按钮点击事件
+  importBtn.addEventListener('click', function() {
+    fileInput.click();
+  });
+  
+  // 文件选择事件处理
+  fileInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        // 读取Excel文件
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        // 获取第一个工作表
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // 转换为JSON格式
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (jsonData.length < 2) {
+          alert('Excel文件内容太少');
+          return;
+        }
+        
+        // 查找ASIN列
+        const headers = jsonData[0];
+        let asinColumnIndex = -1;
+        
+        for (let i = 0; i < headers.length; i++) {
+          if (typeof headers[i] === 'string' && headers[i].toLowerCase().includes('asin')) {
+            asinColumnIndex = i;
+            break;
+          }
+        }
+        
+        if (asinColumnIndex === -1) {
+          alert('未找到包含"asin"的列');
+          return;
+        }
+        
+        // 提取ASIN值
+        const asins = [];
+        for (let i = 1; i < jsonData.length; i++) {
+          const asin = jsonData[i][asinColumnIndex];
+          if (asin && typeof asin === 'string') {
+            asins.push(asin.trim());
+          }
+        }
+        
+        if (asins.length === 0) {
+          alert('未找到有效ASIN值');
+          return;
+        }
+        
+        // 将ASIN添加到textarea，按逗号分隔
+        if (textarea.value.trim()) {
+          // 如果已有内容，添加逗号分隔
+          textarea.value += ',' + asins.join(',');
+        } else {
+          textarea.value = asins.join(',');
+        }
+        
+        // 显示提示
+        alert(`成功导入${asins.length}条ASIN数据`);
+        
+      } catch (error) {
+        console.error('解析Excel文件失败:', error);
+        alert('解析Excel文件失败，请检查文件格式');
+      }
+    };
+    
+    reader.readAsArrayBuffer(file);
+    // 重置文件输入，允许重复选择同一个文件
+    fileInput.value = '';
+  });
+  
   // 创建开始查询按钮
   const startBtn = document.createElement('button');
   startBtn.id = 'bg-batch-check-start-btn';
@@ -753,11 +943,12 @@ function initBatchCheckModal() {
   
   // 添加元素到内容区域
   content.appendChild(textarea);
-  // 创建一个容器来放置两个按钮
+  // 创建一个容器来放置三个按钮
   const buttonContainer = document.createElement('div');
   buttonContainer.style.display = 'flex';
   buttonContainer.style.gap = '10px';
   buttonContainer.style.marginBottom = '15px';
+  buttonContainer.appendChild(importBtn);
   buttonContainer.appendChild(startBtn);
   buttonContainer.appendChild(exportBtn);
   content.appendChild(buttonContainer);
