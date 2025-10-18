@@ -64,7 +64,7 @@ async function Ax(e, t, r = !1, n = !1) {
             broadcastChannel.close();
             Ap({ name: "gohref", body: { href: `${t}/abis/listing/syh/offer?asin=${e}`, status: 0 } });
             resolve("");
-          }, 15e3);
+          }, 15000);
           
           // 监听消息
           broadcastChannel.onmessage = function(message) {
@@ -326,6 +326,7 @@ async function Aw(e,t,r=!1,n=!1){
       // 检查是否需要提供采购发票
       if(approvalDataStr && 
          (approvalDataStr.includes("至少应提供从制造商或分销商处购买商品的1张购买发票") || 
+         approvalDataStr.includes("至少应提供从制造商或分销商处购买商品的1购买发票") || 
           approvalDataStr.includes("At least 1 purchase invoice for  products from a manufacturer or distributor"))
       ){
         try{
@@ -380,7 +381,7 @@ async function checkProductEligibility(baseUrl, asin) {
   }
   console.log(`url：${baseUrl} asin：${asin}`);
   // 执行检查并返回结果
-  const result = await checkFunc(asin, baseUrl, false, false);
+  const result = await checkFunc(asin, baseUrl, false, true);
   
   return result;
 }
@@ -1078,8 +1079,11 @@ async function handleBatchCheck() {
       checkProductEligibility(baseUrl, asin)
         .then(result => {
           // 根据resultMap转换为中文
-          const resultText = resultMap[result.type] || '未知';
+          const resultText = resultMap[result.type] || result.type;
           resultCell.textContent = resultText;
+          if (result.type == "E" && result.requirements) {
+            resultCell.textContent += ` ${result.requirements}`;
+          }
           
           // 根据不同结果设置不同颜色
           setResultCellColor(resultCell, result.type);
@@ -1124,8 +1128,11 @@ async function handleBatchCheck() {
       const resultCell = document.getElementById(`bg-result-${asin}`);
       
       // 根据resultMap转换为中文
-      const resultText = resultMap[result.type] || '未知';
+      const resultText = resultMap[result.type] || result.type;
       resultCell.textContent = resultText;
+      if (result.type == "E" && result.requirements) {
+        resultCell.textContent += ` ${result.requirements}`;
+      }
       
       // 根据不同结果设置不同颜色
       setResultCellColor(resultCell, result.type);
@@ -1247,4 +1254,27 @@ if(document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', BgCheckMain);
 } else {
   BgCheckMain();
+}
+
+
+// 统一的消息派发方法：用于打开/关闭验证页面等
+function Ap(payload) {
+  if (!payload || typeof payload !== 'object') return;
+  const { name, body = {} } = payload;
+  if (name === 'gohref') {
+    const msg = {
+      action: 'gohref',
+      href: body.href,
+      active: body.active,
+      status: body.status
+    };
+    try {
+      chrome.runtime && chrome.runtime.sendMessage(msg, () => {});
+    } catch (e) {
+      // 兜底：在无法调用扩展 API 时，尝试用 window.open 打开
+      if (body && body.href && body.status !== 0) {
+        window.open(body.href, '_blank');
+      }
+    }
+  }
 }

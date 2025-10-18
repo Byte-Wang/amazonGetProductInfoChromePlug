@@ -19,6 +19,8 @@ function makeCorsRequest(url, token,callback) {
     });  
 }
 
+// 记录通过 gohref 打开的标签页
+const openedTabsByHref = {};
 
 chrome.runtime.onMessage.addListener(
     function(request, sender, sendResponse) {
@@ -66,6 +68,36 @@ chrome.runtime.onMessage.addListener(
           console.error('Fetch error:', error);  
           sendResponse({error:error.message}); 
         });  
+      } else if (request.action === "gohref") {
+        // 仅在背景页/Service Worker 环境处理标签页操作
+        if (!chrome.tabs || !chrome.tabs.create) {
+          sendResponse({ ok: false, desc: 'tabs api unavailable' });
+          return true;
+        }
+        // 打开或关闭指定的链接页面
+        const href = request.href;
+        const active = request.active;
+        const status = request.status;
+        if (status === 0) {
+          const tabId = openedTabsByHref[href];
+          if (tabId) {
+            chrome.tabs.remove(tabId, () => {
+              delete openedTabsByHref[href];
+              sendResponse({ ok: true, closed: true });
+            });
+          } else {
+            sendResponse({ ok: false, desc: 'no tab to close' });
+          }
+        } else if (href) {
+          chrome.tabs.create({ url: href, active: active === undefined ? true : !!active }, (tab) => {
+            if (tab && tab.id !== undefined) {
+              openedTabsByHref[href] = tab.id;
+            }
+            sendResponse({ ok: true, tabId: tab?.id });
+          });
+        } else {
+          sendResponse({ ok: false, desc: 'missing href' });
+        }
       }
       return true;
     }
