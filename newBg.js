@@ -1179,8 +1179,10 @@ function initBatchCheckModal() {
     // 重新渲染任务列表
     renderTaskList();
     
-    // 切换到新创建的任务
-    switchTask(taskIndex);
+    // setTimeout(()=>{
+    //   // 切换到新创建的任务
+    //   switchTask(taskIndex);
+    // },200);
     
     // 重新启动刷新状态定时器
     taskManager.startStatusRefresh();
@@ -1189,6 +1191,7 @@ function initBatchCheckModal() {
     if (!taskManager.isProcessing) {
       processTaskQueue();
     }
+    switchTask(taskIndex);
   });
   
   // 添加元素到内容区域
