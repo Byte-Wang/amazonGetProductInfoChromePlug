@@ -1237,7 +1237,10 @@ function initBatchCheckModal() {
     
     taskList.innerHTML = '';
     
-    taskManager.tasks.forEach((task, index) => {
+    // 倒序遍历任务列表，新任务显示在前面
+    [...taskManager.tasks].reverse().forEach((task, reverseIndex) => {
+      // 计算原始索引，用于正确处理点击和删除操作
+      const index = taskManager.tasks.length - 1 - reverseIndex;
       const taskCard = document.createElement('div');
       taskCard.className = 'bg-task-card';
       taskCard.style.minWidth = '200px';
