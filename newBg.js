@@ -7,7 +7,7 @@ async function Ax(e, t, r = !1, n = !1) {
         imageUrl: t?.imageUrl,
         salesRank: t?.salesRank ?? 0,
         requirements: t.requirements
-      };
+      }
     } else {
       return {
         type: e,
@@ -16,7 +16,7 @@ async function Ax(e, t, r = !1, n = !1) {
         requirements: t.requirements
       };
     }
-  }
+   }
   
   try {
     let o = null;
@@ -430,6 +430,9 @@ function BgCheckMain(){
             } else if (res && res.msg) {
                 state = res.msg;
             }
+            if (state == "Token expiration") {
+              state = "请重新登录";
+            }
             createFloatingButton(false,state);
         }
     });
@@ -683,7 +686,185 @@ let resultMap={
 // console.log(result, resultMap[result.type]);
 
 // 初始化批量查询弹窗
+// 全局任务管理对象
+let taskManager = {
+  tasks: [],
+  currentTaskIndex: -1,
+  isProcessing: false,
+  refreshTimer: null,
+  
+  // 初始化任务管理器
+  init: function() {
+    this.loadTasks();
+    this.startStatusRefresh();
+  },
+  
+  // 开始定时刷新任务状态
+  startStatusRefresh: function() {
+    // 清除可能存在的旧定时器
+    this.stopStatusRefresh();
+    
+    // 设置每5秒刷新一次
+    this.refreshTimer = setInterval(() => {
+      // 只有当有任务正在进行中时才刷新
+      if (this.hasRunningTask()) {
+        // 重新加载任务数据
+        this.loadTasks();
+        // 如果有回调函数，则调用它来更新UI
+        if (this.onTasksLoaded && typeof this.onTasksLoaded === 'function') {
+          this.onTasksLoaded();
+        }
+      } else {
+        // 如果没有进行中的任务，停止刷新
+        this.stopStatusRefresh();
+      }
+    }, 5000);
+  },
+  
+  // 停止定时刷新
+  stopStatusRefresh: function() {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  },
+  
+  // 从Chrome存储加载任务
+  loadTasks: function() {
+    try {
+      if (chrome && chrome.storage && chrome.storage.sync) {
+        chrome.storage.sync.get('bgBatchCheckTasks', (result) => {
+          if (result.bgBatchCheckTasks) {
+            this.tasks = result.bgBatchCheckTasks;
+            // 检查是否有正在执行的任务，如果有则继续处理
+            if (this.hasRunningTask() && !this.isProcessing) {
+              processTaskQueue();
+            }
+            // 如果当前有任务但没有选中的任务，选中第一个
+            if (this.tasks.length > 0 && this.currentTaskIndex === -1) {
+              this.currentTaskIndex = 0;
+            }
+          }
+          // 数据加载完成后调用回调更新UI
+          if (this.onTasksLoaded && typeof this.onTasksLoaded === 'function') {
+            this.onTasksLoaded();
+          }
+        });
+      } else {
+        // 降级方案：使用localStorage
+        const savedTasks = localStorage.getItem('bgBatchCheckTasks');
+        if (savedTasks) {
+          this.tasks = JSON.parse(savedTasks);
+        }
+        // 数据加载完成后调用回调更新UI
+        if (this.onTasksLoaded && typeof this.onTasksLoaded === 'function') {
+          this.onTasksLoaded();
+        }
+      }
+    } catch (error) {
+      console.error('加载任务失败:', error);
+      this.tasks = [];
+      // 即使出错也尝试更新UI
+      if (this.onTasksLoaded && typeof this.onTasksLoaded === 'function') {
+        this.onTasksLoaded();
+      }
+    }
+  },
+  
+  // 保存任务到Chrome存储
+  saveTasks: function() {
+    try {
+      if (chrome && chrome.storage && chrome.storage.sync) {
+        chrome.storage.sync.set({ 'bgBatchCheckTasks': this.tasks }, () => {
+          if (chrome.runtime.lastError) {
+            console.error('Chrome存储保存失败:', chrome.runtime.lastError);
+            // 降级到localStorage
+            this.saveTasksToLocal();
+          }
+        });
+      } else {
+        // 降级方案：使用localStorage
+        this.saveTasksToLocal();
+      }
+    } catch (error) {
+      console.error('保存任务失败:', error);
+    }
+  },
+  
+  // 降级方案：保存到localStorage
+  saveTasksToLocal: function() {
+    try {
+      localStorage.setItem('bgBatchCheckTasks', JSON.stringify(this.tasks));
+    } catch (error) {
+      console.error('localStorage保存失败:', error);
+    }
+  },
+  
+  // 创建新任务
+  createTask: function(asins) {
+    const task = {
+      id: Date.now(),
+      name: `任务${this.tasks.length + 1}`,
+      asins: asins,
+      asinCount: asins.length,
+      startTime: new Date().toLocaleString(),
+      status: '等待中', // 等待中、进行中、已完成
+      progress: 0,
+      results: {}
+    };
+    
+    this.tasks.push(task);
+    this.saveTasks();
+    return this.tasks.length - 1; // 返回任务索引
+  },
+  
+  // 更新任务状态
+  updateTaskStatus: function(index, status, progress = null, results = null) {
+    if (this.tasks[index]) {
+      this.tasks[index].status = status;
+      if (progress !== null) {
+        this.tasks[index].progress = progress;
+      }
+      if (results) {
+        this.tasks[index].results = { ...this.tasks[index].results, ...results };
+      }
+      this.saveTasks();
+    }
+  },
+  
+  // 设置当前选中的任务
+  setCurrentTask: function(index) {
+    this.currentTaskIndex = index;
+  },
+  
+  // 获取当前任务
+  getCurrentTask: function() {
+    return this.tasks[this.currentTaskIndex];
+  },
+  
+  // 获取下一个等待执行的任务
+  getNextPendingTask: function() {
+    return this.tasks.findIndex(task => task.status === '等待中');
+  },
+  
+  // 检查是否有进行中的任务
+  hasRunningTask: function() {
+    return this.tasks.some(task => task.status === '进行中');
+  }
+};
+
 function initBatchCheckModal() {
+  // 初始化任务管理器
+  taskManager.init();
+  
+  // 直接初始化渲染任务列表，对于已加载的任务立即显示
+  renderTaskList();
+  
+  // 监听任务数据变化，用于同步加载完成后的UI更新
+  taskManager.onTasksLoaded = function() {
+    renderTaskList();
+  };
+  
   // 创建遮罩层
   const overlay = document.createElement('div');
   overlay.id = 'bg-batch-check-overlay';
@@ -906,10 +1087,39 @@ function initBatchCheckModal() {
     startBtn.style.backgroundColor = '#1976d2';
   });
   
+  // 创建任务列表容器
+  const taskListContainer = document.createElement('div');
+  taskListContainer.id = 'bg-batch-check-task-list';
+  taskListContainer.style.marginTop = '20px';
+  taskListContainer.style.marginBottom = '15px';
+  
+  // 创建任务列表标题
+  const taskListTitle = document.createElement('div');
+  taskListTitle.textContent = '任务列表';
+  taskListTitle.style.fontSize = '14px';
+  taskListTitle.style.fontWeight = 'bold';
+  taskListTitle.style.color = '#333';
+  taskListTitle.style.marginBottom = '10px';
+  taskListContainer.appendChild(taskListTitle);
+  
+  // 创建横向滚动的任务列表
+  const taskList = document.createElement('div');
+  taskList.id = 'bg-batch-check-task-items';
+  taskList.style.display = 'flex';
+  taskList.style.gap = '10px';
+  taskList.style.overflowX = 'auto';
+  taskList.style.paddingBottom = '10px';
+  taskList.style.scrollbarWidth = 'thin';
+  taskList.style.scrollbarColor = '#888 #f1f1f1';
+  taskListContainer.appendChild(taskList);
+  
+  // 渲染任务列表函数
+  // function renderTaskList() {
+  
   // 添加查询结果容器
   const resultContainer = document.createElement('div');
   resultContainer.id = 'bg-batch-check-result-container';
-  resultContainer.style.marginTop = '20px';
+  resultContainer.style.marginTop = '10px';
   
   // 添加进度显示
   const progressContainer = document.createElement('div');
@@ -937,22 +1147,68 @@ function initBatchCheckModal() {
   exportBtn.disabled = true; // 初始禁用
   
   // 添加导出按钮点击事件
-  exportBtn.addEventListener('click', exportToCSV);
+  exportBtn.addEventListener('click', function() {
+    const currentTask = taskManager.getCurrentTask();
+    if (currentTask) {
+      exportTaskToCSV(currentTask);
+    }
+  });
   
   // 添加开始查询按钮的点击事件
-  startBtn.addEventListener('click', handleBatchCheck);
+  startBtn.addEventListener('click', function() {
+    const asinText = textarea.value.trim();
+    if (!asinText) {
+      alert('请输入ASIN');
+      return;
+    }
+    
+    // 解析ASIN列表
+    const asins = [...new Set(asinText.split(/[\n\s,]+/).filter(asin => asin.trim() !== ''))];
+    
+    if (asins.length === 0) {
+      alert('请输入有效的ASIN');
+      return;
+    }
+    
+    // 创建新任务
+    const taskIndex = taskManager.createTask(asins);
+    
+    // 清空输入框
+    textarea.value = '';
+    
+    // 重新渲染任务列表
+    renderTaskList();
+    
+    // 切换到新创建的任务
+    switchTask(taskIndex);
+    
+    // 重新启动刷新状态定时器
+    taskManager.startStatusRefresh();
+    
+    // 如果当前没有正在执行的任务，开始处理任务队列
+    if (!taskManager.isProcessing) {
+      processTaskQueue();
+    }
+  });
   
   // 添加元素到内容区域
   content.appendChild(textarea);
-  // 创建一个容器来放置三个按钮
+  
+  // 创建一个容器来放置两个按钮
   const buttonContainer = document.createElement('div');
   buttonContainer.style.display = 'flex';
   buttonContainer.style.gap = '10px';
   buttonContainer.style.marginBottom = '15px';
   buttonContainer.appendChild(importBtn);
   buttonContainer.appendChild(startBtn);
-  buttonContainer.appendChild(exportBtn);
   content.appendChild(buttonContainer);
+  
+  // 添加任务列表
+  content.appendChild(taskListContainer);
+  
+  // 添加导出按钮
+  content.appendChild(exportBtn);
+  
   content.appendChild(resultContainer);
   content.appendChild(progressContainer);
   
@@ -965,6 +1221,312 @@ function initBatchCheckModal() {
   
   // 添加遮罩层到页面
   document.body.appendChild(overlay);
+  
+  // 检查是否有正在执行的任务，如果有则继续处理
+  if (taskManager.hasRunningTask() && !taskManager.isProcessing) {
+    processTaskQueue();
+  }
+  
+  // 渲染任务列表函数
+  function renderTaskList() {
+    const taskList = document.getElementById('bg-batch-check-task-items');
+    if (!taskList) return;
+    
+    taskList.innerHTML = '';
+    
+    taskManager.tasks.forEach((task, index) => {
+      const taskCard = document.createElement('div');
+      taskCard.className = 'bg-task-card';
+      taskCard.style.minWidth = '200px';
+      taskCard.style.padding = '12px';
+      taskCard.style.backgroundColor = '#f9f9f9';
+      taskCard.style.border = `2px solid ${index === taskManager.currentTaskIndex ? '#1976d2' : '#e0e0e0'}`;
+      taskCard.style.borderRadius = '8px';
+      taskCard.style.cursor = 'pointer';
+      taskCard.style.transition = 'all 0.2s';
+      taskCard.style.fontSize = '13px';
+      taskCard.style.lineHeight = '1.4';
+      taskCard.style.position = 'relative'; // 为绝对定位的删除按钮提供参考点
+      
+      // 添加点击事件
+      taskCard.addEventListener('click', function() {
+        switchTask(index);
+      });
+      
+      // 添加悬停效果
+      taskCard.addEventListener('mouseover', function() {
+        if (index !== taskManager.currentTaskIndex) {
+          taskCard.style.borderColor = '#1976d2';
+          taskCard.style.backgroundColor = '#f0f7ff';
+        }
+      });
+      
+      taskCard.addEventListener('mouseout', function() {
+        if (index !== taskManager.currentTaskIndex) {
+          taskCard.style.borderColor = '#e0e0e0';
+          taskCard.style.backgroundColor = '#f9f9f9';
+        }
+      });
+      
+      // 任务名称
+      const taskName = document.createElement('div');
+      taskName.textContent = task.name;
+      taskName.style.fontWeight = 'bold';
+      taskName.style.color = '#333';
+      taskName.style.marginBottom = '5px';
+      taskCard.appendChild(taskName);
+      
+      // ASIN数量
+      const asinCount = document.createElement('div');
+      asinCount.textContent = `ASIN数量: ${task.asinCount}`;
+      asinCount.style.color = '#666';
+      asinCount.style.marginBottom = '3px';
+      taskCard.appendChild(asinCount);
+      
+      // 开始时间
+      const startTime = document.createElement('div');
+      startTime.textContent = `开始时间: ${task.startTime}`;
+      startTime.style.color = '#666';
+      startTime.style.marginBottom = '3px';
+      taskCard.appendChild(startTime);
+      
+      // 状态
+      const status = document.createElement('div');
+      status.textContent = `状态: ${task.status}`;
+      
+      // 根据状态设置颜色
+      let statusColor = '#666';
+      if (task.status === '等待中') statusColor = '#ff9800';
+      else if (task.status === '进行中') statusColor = '#2196f3';
+      else if (task.status === '已完成') statusColor = '#4caf50';
+      
+      status.style.color = statusColor;
+      status.style.fontWeight = 'bold';
+      status.style.marginBottom = '3px';
+      taskCard.appendChild(status);
+      
+      // 进度
+      if (task.status !== '等待中') {
+        const progress = document.createElement('div');
+        progress.textContent = `进度: ${task.progress}/${task.asinCount}`;
+        progress.style.color = '#666';
+        taskCard.appendChild(progress);
+      }
+      
+      // 添加删除按钮
+      const deleteButton = document.createElement('button');
+      deleteButton.textContent = '删除';
+      deleteButton.style.position = 'absolute';
+      deleteButton.style.bottom = '5px';
+      deleteButton.style.right = '5px';
+      deleteButton.style.padding = '3px 8px';
+      deleteButton.style.fontSize = '11px';
+      deleteButton.style.backgroundColor = '#ff5252';
+      deleteButton.style.color = 'white';
+      deleteButton.style.border = 'none';
+      deleteButton.style.borderRadius = '4px';
+      deleteButton.style.cursor = 'pointer';
+      deleteButton.style.zIndex = '10';
+      
+      // 为删除按钮添加点击事件，阻止事件冒泡到任务卡片
+      deleteButton.addEventListener('click', function(event) {
+        event.stopPropagation(); // 阻止事件冒泡，避免触发任务卡片的点击事件
+        
+        // 二次确认对话框
+        if (confirm('确定要删除这个任务吗？删除后将无法恢复。')) {
+          // 从任务管理器中删除任务
+          taskManager.tasks.splice(index, 1);
+          // 如果删除的是当前任务，重置currentTaskIndex
+          if (index === taskManager.currentTaskIndex) {
+            taskManager.currentTaskIndex = -1;
+          } else if (index < taskManager.currentTaskIndex) {
+            // 如果删除的任务在当前任务之前，调整currentTaskIndex
+            taskManager.currentTaskIndex--;
+          }
+          // 保存任务列表并重新渲染
+          taskManager.saveTasksToLocal();
+          renderTaskList();
+        }
+      });
+      
+      taskCard.appendChild(deleteButton);
+      taskList.appendChild(taskCard);
+    });
+  }
+  
+  // 切换任务函数
+  function switchTask(index) {
+    taskManager.setCurrentTask(index);
+    renderTaskList();
+    
+    const task = taskManager.tasks[index];
+    const resultContainer = document.getElementById('bg-batch-check-result-container');
+    const exportBtn = document.getElementById('bg-batch-check-export-btn');
+    const progressContainer = document.getElementById('bg-batch-check-progress');
+    
+    // 清空结果容器
+    resultContainer.innerHTML = '';
+    
+    // 显示进度（如果任务正在进行中）
+    if (task.status === '进行中') {
+      progressContainer.style.display = 'block';
+      progressContainer.textContent = `已查询：${task.progress}/${task.asinCount}`;
+    } else {
+      progressContainer.style.display = 'none';
+    }
+    
+    // 更新导出按钮状态
+    if (task.status === '已完成') {
+      exportBtn.disabled = false;
+      exportBtn.style.backgroundColor = '#4caf50';
+      exportBtn.style.color = '#fff';
+      exportBtn.style.cursor = 'pointer';
+    } else {
+      exportBtn.disabled = true;
+      exportBtn.style.backgroundColor = '#ccc';
+      exportBtn.style.color = '#666';
+      exportBtn.style.cursor = 'not-allowed';
+    }
+    
+    // 如果任务已完成或正在进行中，显示结果表格
+    if (task.status === '已完成' || task.status === '进行中') {
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      table.style.marginTop = '10px';
+      
+      // 创建表头
+      const thead = document.createElement('thead');
+      thead.style.backgroundColor = '#f5f5f5';
+      
+      const headerRow = document.createElement('tr');
+      
+      // 创建表头单元格
+      const headers = ['序号', 'ASIN', '查询结果', '操作'];
+      headers.forEach(headerText => {
+        const th = document.createElement('th');
+        th.textContent = headerText;
+        th.style.padding = '10px';
+        th.style.border = '1px solid #ddd';
+        th.style.textAlign = 'left';
+        headerRow.appendChild(th);
+      });
+      
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      
+      // 创建表格主体
+      const tbody = document.createElement('tbody');
+      
+      // 为每个ASIN创建一行
+      task.asins.forEach((asin, index) => {
+        const row = document.createElement('tr');
+        row.dataset.asin = asin;
+        
+        // 序号单元格
+        const indexCell = document.createElement('td');
+        indexCell.textContent = index + 1;
+        indexCell.style.padding = '10px';
+        indexCell.style.border = '1px solid #ddd';
+        
+        // ASIN单元格
+        const asinCell = document.createElement('td');
+        asinCell.textContent = asin;
+        asinCell.style.padding = '10px';
+        asinCell.style.border = '1px solid #ddd';
+        
+        // 结果单元格
+        const resultCell = document.createElement('td');
+        resultCell.id = `bg-result-${task.id}-${asin}`;
+        
+        // 显示保存的结果或查询状态
+        const result = task.results[asin];
+        if (result) {
+          // 根据resultMap转换为中文
+          const resultText = resultMap[result.type] || result.type;
+          resultCell.textContent = resultText;
+          if (result.type == "E" && result.requirements) {
+            resultCell.textContent += ` ${result.requirements}`;
+          }
+          
+          // 根据不同结果设置不同颜色
+          setResultCellColor(resultCell, result.type);
+        } else if (task.status === '进行中') {
+          resultCell.textContent = '查询中...';
+        } else {
+          resultCell.textContent = '未查询';
+        }
+        
+        resultCell.style.padding = '10px';
+        resultCell.style.border = '1px solid #ddd';
+        
+        // 操作单元格
+        const actionCell = document.createElement('td');
+        actionCell.style.padding = '10px';
+        actionCell.style.border = '1px solid #ddd';
+        
+        // 添加重新查询按钮
+        const retryBtn = document.createElement('button');
+        retryBtn.textContent = '重新查询';
+        retryBtn.style.padding = '5px 10px';
+        retryBtn.style.fontSize = '12px';
+        retryBtn.style.backgroundColor = '#ffeb3b';
+        retryBtn.style.color = '#212121';
+        retryBtn.style.border = 'none';
+        retryBtn.style.borderRadius = '3px';
+        retryBtn.style.cursor = 'pointer';
+        retryBtn.addEventListener('click', function() {
+          // 显示查询中状态
+          const resultCell = document.getElementById(`bg-result-${task.id}-${asin}`);
+          resultCell.textContent = '重新查询中...';
+          resultCell.style.color = '#666';
+          resultCell.style.fontWeight = 'normal';
+          
+          // 获取当前页面的域名作为baseUrl
+          const currentUrl = new URL(window.location.href);
+          const baseUrl = `${currentUrl.protocol}//${currentUrl.hostname}`;
+          
+          // 单独重新查询这个ASIN
+          checkProductEligibility(baseUrl, asin)
+            .then(result => {
+              // 更新任务结果
+              const updatedResults = { ...task.results };
+              updatedResults[asin] = result;
+              task.results = updatedResults;
+              taskManager.saveTasks();
+              
+              // 根据resultMap转换为中文
+              const resultText = resultMap[result.type] || result.type;
+              resultCell.textContent = resultText;
+              if (result.type == "E" && result.requirements) {
+                resultCell.textContent += ` ${result.requirements}`;
+              }
+              
+              // 根据不同结果设置不同颜色
+              setResultCellColor(resultCell, result.type);
+            })
+            .catch(error => {
+              console.error(`重新查询ASIN ${asin} 失败:`, error);
+              resultCell.textContent = '查询失败';
+              resultCell.style.color = '#d32f2f';
+            });
+        });
+        
+        actionCell.appendChild(retryBtn);
+        
+        // 添加所有单元格到行
+        row.appendChild(indexCell);
+        row.appendChild(asinCell);
+        row.appendChild(resultCell);
+        row.appendChild(actionCell);
+        
+        tbody.appendChild(row);
+      });
+      
+      table.appendChild(tbody);
+      resultContainer.appendChild(table);
+    }
+  }
 }
 
 // 处理批量查询
@@ -1258,6 +1820,206 @@ if(document.readyState === 'loading') {
 
 
 // 统一的消息派发方法：用于打开/关闭验证页面等
+// 处理任务队列
+function processTaskQueue() {
+  // 如果已经在处理中，直接返回
+  if (taskManager.isProcessing) {
+    return;
+  }
+  
+  taskManager.isProcessing = true;
+  
+  // 获取下一个等待执行的任务
+  const nextTaskIndex = taskManager.getNextPendingTask();
+  
+  if (nextTaskIndex === -1) {
+    // 没有等待的任务，结束处理
+    taskManager.isProcessing = false;
+    return;
+  }
+  
+  const task = taskManager.tasks[nextTaskIndex];
+  
+  // 更新任务状态为进行中
+  taskManager.updateTaskStatus(nextTaskIndex, '进行中', 0);
+  
+  // 获取当前页面的域名作为baseUrl
+  const currentUrl = new URL(window.location.href);
+  const baseUrl = `${currentUrl.protocol}//${currentUrl.hostname}`;
+  
+  // 递归处理每个ASIN
+  processTaskASIN(nextTaskIndex, 0, baseUrl).then(() => {
+    // 所有ASIN处理完成，更新任务状态为已完成
+    taskManager.updateTaskStatus(nextTaskIndex, '已完成', task.asinCount);
+    
+    // 重置处理状态
+    taskManager.isProcessing = false;
+    
+    // 处理下一个任务
+    processTaskQueue();
+    
+    // 如果当前选中的是这个任务，更新UI
+    if (taskManager.currentTaskIndex === nextTaskIndex) {
+      const taskList = document.getElementById('bg-batch-check-task-items');
+      if (taskList) {
+        const exportBtn = document.getElementById('bg-batch-check-export-btn');
+        if (exportBtn) {
+          exportBtn.disabled = false;
+          exportBtn.style.backgroundColor = '#4caf50';
+          exportBtn.style.color = '#fff';
+          exportBtn.style.cursor = 'pointer';
+        }
+        
+        const progressContainer = document.getElementById('bg-batch-check-progress');
+        if (progressContainer) {
+          progressContainer.style.display = 'none';
+        }
+      }
+    }
+  }).catch(error => {
+    console.error('任务处理失败:', error);
+    taskManager.isProcessing = false;
+    // 继续处理下一个任务
+    processTaskQueue();
+  });
+}
+
+// 递归处理任务中的每个ASIN
+function processTaskASIN(taskIndex, asinIndex, baseUrl) {
+  const task = taskManager.tasks[taskIndex];
+  
+  if (asinIndex >= task.asins.length) {
+    return Promise.resolve();
+  }
+  
+  const asin = task.asins[asinIndex];
+  
+  // 如果已经有结果，跳过这个ASIN
+  if (task.results[asin]) {
+    return processTaskASIN(taskIndex, asinIndex + 1, baseUrl);
+  }
+  
+  // 执行查询
+  return checkProductEligibility(baseUrl, asin).then(result => {
+    // 保存结果
+    const updatedResults = { ...task.results };
+    updatedResults[asin] = result;
+    
+    // 更新任务状态
+    taskManager.updateTaskStatus(taskIndex, '进行中', asinIndex + 1, updatedResults);
+    
+    // 更新UI（如果当前选中的是这个任务）
+    if (taskManager.currentTaskIndex === taskIndex) {
+      // 更新进度显示
+      const progressContainer = document.getElementById('bg-batch-check-progress');
+      if (progressContainer) {
+        progressContainer.textContent = `已查询：${asinIndex + 1}/${task.asinCount}`;
+      }
+      
+      // 更新结果单元格
+      const resultCell = document.getElementById(`bg-result-${task.id}-${asin}`);
+      if (resultCell) {
+        // 根据resultMap转换为中文
+        const resultText = resultMap[result.type] || result.type;
+        resultCell.textContent = resultText;
+        if (result.type == "E" && result.requirements) {
+          resultCell.textContent += ` ${result.requirements}`;
+        }
+        
+        // 根据不同结果设置不同颜色
+        setResultCellColor(resultCell, result.type);
+      }
+    }
+    
+    // 延迟后处理下一个ASIN，避免请求过快
+    return new Promise(resolve => {
+      setTimeout(() => {
+        resolve(processTaskASIN(taskIndex, asinIndex + 1, baseUrl));
+      }, 1000); // 1秒延迟
+    });
+  }).catch(error => {
+    console.error(`查询ASIN ${asin} 失败:`, error);
+    
+    // 记录错误结果
+    const updatedResults = { ...task.results };
+    updatedResults[asin] = { type: 'error', message: '查询失败' };
+    
+    // 更新任务状态
+    taskManager.updateTaskStatus(taskIndex, '进行中', asinIndex + 1, updatedResults);
+    
+    // 更新UI
+    if (taskManager.currentTaskIndex === taskIndex) {
+      const progressContainer = document.getElementById('bg-batch-check-progress');
+      if (progressContainer) {
+        progressContainer.textContent = `已查询：${asinIndex + 1}/${task.asinCount}`;
+      }
+      
+      const resultCell = document.getElementById(`bg-result-${task.id}-${asin}`);
+      if (resultCell) {
+        resultCell.textContent = '查询失败';
+        resultCell.style.color = '#d32f2f';
+      }
+    }
+    
+    // 继续处理下一个ASIN
+    return new Promise(resolve => {
+      setTimeout(() => {
+        resolve(processTaskASIN(taskIndex, asinIndex + 1, baseUrl));
+      }, 1000);
+    });
+  });
+}
+
+// 导出任务结果到CSV
+function exportTaskToCSV(task) {
+  // 构建CSV内容
+  let csvContent = '序号,ASIN,查询结果\n';
+  
+  // 添加每个ASIN的结果
+  task.asins.forEach((asin, index) => {
+    const result = task.results[asin];
+    let resultText = '';
+    
+    if (result) {
+      // 根据resultMap转换为中文
+      resultText = resultMap[result.type] || result.type;
+      if (result.type == "E" && result.requirements) {
+        resultText += ` ${result.requirements}`;
+      }
+    } else {
+      resultText = '未查询';
+    }
+    
+    // 处理特殊字符（逗号、引号、换行符）
+    asin = asin.includes(',') || asin.includes('"') || asin.includes('\n') ? `"${asin.replace(/"/g, '""')}"` : asin;
+    resultText = resultText.includes(',') || resultText.includes('"') || resultText.includes('\n') ? `"${resultText.replace(/"/g, '""')}"` : resultText;
+    
+    csvContent += `${index + 1},${asin},${resultText}\n`;
+  });
+  
+  // 创建Blob对象
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  
+  // 创建下载链接
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  
+  // 设置链接属性
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${task.name}_结果_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`);
+  link.style.visibility = 'hidden';
+  
+  // 添加到DOM并触发点击
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// 修改handleBatchCheck函数，使其调用新的任务管理系统
+function handleBatchCheck() {
+  console.warn('handleBatchCheck函数已被新的任务管理系统替代');
+}
+
 function Ap(payload) {
   if (!payload || typeof payload !== 'object') return;
   const { name, body = {} } = payload;
@@ -1278,3 +2040,4 @@ function Ap(payload) {
     }
   }
 }
+  
