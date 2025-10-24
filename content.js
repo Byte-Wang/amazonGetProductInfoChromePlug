@@ -1964,7 +1964,7 @@ function parserToSerchListView(){
 
     divs.forEach(div => {  
         // 检查div是否包含data-asin属性  
-        if (div.hasAttribute('data-asin') && div.getAttribute('data-asin').trim() !== '') {  
+        if (div.hasAttribute('data-asin') && div.getAttribute('data-asin').trim() !== '' && div.hasAttribute('data-index')) {  
             const asin = div.getAttribute('data-asin');
             FXLog("[test] 查询到asin："+asin);
 

@@ -396,7 +396,7 @@ function isProductSearchPage() {
     if (hostname.includes('sellercentral.amazon') && pathname.includes('product-search')) {
         return true;
     }
-    return true;
+    return false;
 }
 
 function BgCheckMain(){
