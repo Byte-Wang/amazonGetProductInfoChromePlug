@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Temu 采集工具预览</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+    .autoFitList {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding: 20px;
+    }
+    .item {
+      background: #fafafa;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      min-height: 80px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Temu 商品列表页模拟</h1>
+  <p>用于预览UI（通过URL参数 devPreview=1 绕过域名与列表页判断）。</p>
+  <div class="autoFitList">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+  </div>
+
+  <script src="./temuAutoCollection.js"></script>
+</body>
+</html>
