@@ -476,7 +476,7 @@
     card.style.background = '#f6f8fa';
     card.textContent = '采集中…';
     try {
-      anchorNode.insertAdjacentElement('afterend', card);
+      anchorNode.appendChild(card);
     } catch (e) {
       // 兜底：插到父节点末尾
       anchorNode && anchorNode.appendChild(card);
@@ -633,10 +633,14 @@
           total_sales,
           status: 1
         };
-        log('上报准备', { product_id: productId, daily_sales, rating, willReport });
+        const failureReasons = [];
+         if (daily_sales < minDailySales) failureReasons.push(`日销量未达标（当前 ${daily_sales}，需≥${minDailySales}）`);
+         if (rating < minRating) failureReasons.push(`评分未达标（当前 ${rating}，需≥${minRating}）`);
+         if (!passCategory) failureReasons.push(`分类不在白名单（${category || '未知'}）`);
+         log('上报准备', { product_id: productId, daily_sales, rating, category, passCategory, willReport, failureReasons });
 
         if (!willReport) {
-          setStatusCard(statusCard, 'skip', `不符合条件：日销量>=${minDailySales} 且 评分>=${minRating}`);
+          setStatusCard(statusCard, 'skip', failureReasons.join('；') || '不符合采集条件');
         } else {
           // 上报（仅在符合条件时）
           await reportTemuGoods(productData).then(res => {
