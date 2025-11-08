@@ -739,6 +739,9 @@
       const m = style.match(/background-image:\s*url\(("|')(.*?)("|')\)/);
       if (m) return m[2];
     }
+    // 增加对video标签的判断，提取poster属性作为产品图片
+    const video = root.querySelector('video');
+    if (video && video.poster) return video.poster;
     return '';
   }
 
