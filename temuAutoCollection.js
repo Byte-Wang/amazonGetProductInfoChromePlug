@@ -731,17 +731,29 @@
   }
 
   function findImageUrl(root) {
+    // console.log("[findImageUrl] rootDiv",root);
     const img = root.querySelector('img[data-js-main-img="true"], img.goods-img-external');
-    if (img && img.src) return img.src;
+    if (img && img.src) {
+      // console.log("[findImageUrl] img src",img.src);
+      return img.src;
+    }
     const bgSpan = root.querySelector('span[style*="background-image"]');
     if (bgSpan) {
       const style = bgSpan.getAttribute('style') || '';
       const m = style.match(/background-image:\s*url\(("|')(.*?)("|')\)/);
-      if (m) return m[2];
+
+      if (m) {
+        // console.log("[findImageUrl] background-image",m[2]);
+        return m[2];
+      }
     }
     // 增加对video标签的判断，提取poster属性作为产品图片
     const video = root.querySelector('video');
-    if (video && video.poster) return video.poster;
+    if (video && video.poster) {
+      // console.log("[findImageUrl] video.poster",m[2]);
+      return video.poster;
+    }
+    // console.log("[findImageUrl] not found");
     return '';
   }
 
@@ -762,8 +774,29 @@
   async function waitForGdidDiv(productId, timeoutMs = 10000) {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
+      // 查找可能包含shadowRoot的元素
+      const potentialShadowHosts = document.querySelectorAll('.oyqli');
+      
+      for (const host of potentialShadowHosts) {
+        try {
+          // 检查是否能访问shadowRoot
+          if (host.shadowRoot && host.shadowRoot.mode !== 'closed') {
+            const shadowDiv = host.shadowRoot.querySelector(`div[gdid="${productId}"]`);
+            if (shadowDiv) return shadowDiv;
+          } else {
+            // 对于closed模式的shadowRoot，尝试通过evaluate查找
+            const result = host.querySelector(`div[gdid="${productId}"]`);
+            if (result) return result;
+          }
+        } catch (e) {
+          console.error('访问shadowRoot时出错:', e);
+        }
+      }
+      
+      // 如果在shadowHost中找不到，再尝试直接查找
       const div = document.querySelector(`div[gdid="${productId}"]`);
       if (div) return div;
+      
       await sleep(500);
     }
     return null;
@@ -813,4 +846,16 @@
   } else {
     temuAutoCollectionMain();
   }
+  
+  function injectScript() {
+    console.log('[TemuAutoCollection] injectScript');
+    const script = document.createElement('script');
+    script.src = chrome.runtime.getURL('inject.js');
+    // script.onload = function () {
+    //   this.remove(); // 可选：加载完就移除
+    // };
+    (document.head || document.documentElement).appendChild(script);
+  }
+  injectScript();
+
 })();
