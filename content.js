@@ -1,3 +1,7 @@
+// 引入配置文件
+let feixunPlugConfig = { autoGetFBA: false, queryFBAFromCloud: false }; // 默认配置
+
+
 function getBrand(doc = document){
     var brandRow = doc.querySelector('tr.po-brand');  
     if (brandRow) {  
@@ -88,6 +92,7 @@ function checkVersionIsAvalible(callback,retryTimes = 3){
 
     });
 }
+
   
 
 function checkBrandOld(brand,callback){
@@ -319,6 +324,11 @@ function checkAsin(asin,callback){
 }
 
 function getFBA(asin, callback) {
+    // 检查配置，如果不是从云端查询，则调用本地查询方法
+    if (!feixunPlugConfig.queryFBAFromCloud) {
+        getFbaByLocal(asin, callback);
+        return;
+    }
     chrome.storage.sync.get('userInfo', function(result) {
         FXLog("[fba] 获取用户信息：",result);
         const userInfo = result.userInfo;
@@ -363,7 +373,8 @@ function getFBA(asin, callback) {
 
 function getFbaByLocal(asin,callback){
     chrome.storage.sync.get('userInfo', function(result) {
-        FXLog("[fba] 获取用户信息：",result);
+        FXLog("[fba] 本地获取用户信息：",result);
+        let region = getRegion();
         let marketplaceId = "";
         if (region == 'ca' || region == 'CA') { // 加拿大
             marketplaceId = 'A2EUQ1WTGCTBG2';
@@ -395,7 +406,7 @@ function getFbaByLocal(asin,callback){
             url: url,
             data: {}
         },(response)=> {
-            FXLog("[test] 调用getFba请求结果",response);
+            FXLog("[fba] 本地调用getFba请求结果",response);
             if (response && response.status == 1 && response.content && response.content.asin.toLowerCase() == asin.toLowerCase()) {
                 let content = response.content;
                 let cost = (content.fbaFee+content.storageFee+content.referralFee).toFixed(2); // 成本：亚马逊运费+亚马逊仓储费+亚马逊佣金
@@ -595,7 +606,7 @@ function getMainContentView(asin = "") {
                                         <div class=\"feixun_plug_col-3\"><b>重量：</b><span id=\"feixun_plug_weight"+idSubfix+"\"></span></div>\
                                         <div class=\"feixun_plug_col-3\"><b>利润率：</b><span id=\"feixun_plug_profitRate"+idSubfix+"\"></span></div>\
                                         <div class=\"feixun_plug_col-3\"><b>购物车：</b><span id=\"feixun_plug_amount"+idSubfix+"\"></span></div>\
-                                        <input type=\"button\" id=\"getFBA_button"+idSubfix+"\" value=\"查询FBA\" />\
+                                        " + (feixunPlugConfig.autoGetFBA ? "" : "<input type=\"button\" id=\"getFBA_button"+idSubfix+"\" value=\"查询FBA\" />" ) + "\
                                     </div>\
                                     <div class=\"feixun_plug_row\">\
                                         <div class=\"feixun_plug_col-6\" ><b>上架时间：</b><span id=\"feixun_plug_AvailableDate"+idSubfix+"\"></span></div>\
@@ -616,7 +627,7 @@ function initGetFbaButton(asin,btnId){
         updateInfo("feixun_plug_totalFba"+idSubfix,"查询中");
         updateInfo("feixun_plug_profitRate"+idSubfix,"查询中");
         getFBA(asin,(response)=>{
-            FXLog("[fba]["+asin+"] 查询fba结果：",response.desc);
+            FXLog("[fba]["+asin+"] 查询fba结果：",response);
             if (response.amount) {
                 FXLog("[fba]["+asin+"] 返回值有效，展示数据");
                 var classType = "feixun_plug_flag_green";
@@ -1725,15 +1736,18 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
                     'totalFBA': currentAsinCache['totalFba']
                 });
             } else {
-                // FXLog("[fba]["+asin+"] 开始查询fba");
-                // getFBA(asin,getFBACallback);
-                updateInfo("feixun_plug_amount"+idSubfix,"--");
-                updateInfo("feixun_plug_totalFba"+idSubfix,"--");
-                updateInfo("feixun_plug_profitRate"+idSubfix,"--");
+                if (feixunPlugConfig.autoGetFBA) {
+                    FXLog("[fba]["+asin+"] 开始查询fba");
+                    getFBA(asin,getFBACallback);
+                } else {
+                    updateInfo("feixun_plug_amount"+idSubfix,"--");
+                    updateInfo("feixun_plug_totalFba"+idSubfix,"--");
+                    updateInfo("feixun_plug_profitRate"+idSubfix,"--");
 
-                checkPduductInfoIsComplete(currentAsinCache,asin,'amount',0);
-                checkPduductInfoIsComplete(currentAsinCache,asin,'totalFba',0);
-                checkPduductInfoIsComplete(currentAsinCache,asin,'profitRate',0);
+                    checkPduductInfoIsComplete(currentAsinCache,asin,'amount',0);
+                    checkPduductInfoIsComplete(currentAsinCache,asin,'totalFba',0);
+                    checkPduductInfoIsComplete(currentAsinCache,asin,'profitRate',0);
+                }
             }
             
         }
@@ -1823,7 +1837,9 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
             checkPduductInfoIsComplete(currentAsinCache,asin,'reviewType',response);
         },detailDoc);
 
+        FXLog('['+asin+']'+"开始查询标题");
         getProductTitle((title)=>{
+             FXLog('['+asin+']'+"查询标题："+title);
             checkPduductInfoIsComplete(currentAsinCache,asin,'productTitle',title);
         },detailDoc);
 
@@ -1834,11 +1850,7 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
 }
 
 function checkPduductInfoIsComplete(cahce, asin, type, value){
-    if (cahce) {
-        FXLog('['+asin+']'+type+"通过缓存加载的："+value);
-        autoGotoNextPage(asin);
-        return;
-    }
+  
 
     FXLog('['+asin+']'+type+"查询完成："+value);
 
@@ -1852,26 +1864,35 @@ function checkPduductInfoIsComplete(cahce, asin, type, value){
         asinInfo = window.feixunPlugTempRroductInfo[asin];
         // FXLog('['+asin+']从临时缓存获取到当前产品信息');
     }
+
+    FXLog('['+asin+']'+"已查询完成数据：", asinInfo);
     
     // 更新数据
     asinInfo[type] = value;
     window.feixunPlugTempRroductInfo[asin] = asinInfo;
     // FXLog('['+asin+']更新临时缓存的产品信息');
 
+    if (cahce) {
+        FXLog('['+asin+']'+type+"通过缓存加载的："+value);
+        autoGotoNextPage(asin);
+        return;
+    }
+
     const allKeys = Object.keys(asinInfo);
-    const allType = ['asinIsExist','brand','brandGCount','brandTCount','amount','totalFba','profitRate','soldBy','soldByNumber','ShipsFrom','rank','category','weight','size','AvailableDate','ReviewNumber','asinType','reviewType','productTitle','productImage'];
+    const allType = ['asinIsExist','brand','amount','totalFba','profitRate','ShipsFrom','rank','category','AvailableDate','ReviewNumber','productTitle','productImage'];
     let isComplete = true;
 
+    let unknowKey = "";
     allType.forEach(type => {
         if (!allKeys.includes(type)) {
             isComplete = false;
-            FXLog('['+asin+']还有'+type+'未查询');
+            unknowKey = unknowKey + type + ",";
         }
     });
 
     if (isComplete) {
         let tempProductInfo = window.feixunPlugTempRroductInfo[asin];
-        window.feixunPlugTempRroductInfo[asin] = null;
+        // window.feixunPlugTempRroductInfo[asin] = null;
 
         FXLog('['+asin+']已查询完所有产品信息，更新到chrome缓存',tempProductInfo);
         tempProductInfo['cacheTime'] = Date.now();
@@ -1892,6 +1913,8 @@ function checkPduductInfoIsComplete(cahce, asin, type, value){
         addPlugProductRecord(asin, tempProductInfo);
 
         autoGotoNextPage(asin);
+    } else {
+        FXLog('['+asin+']还有'+unknowKey+'未查询');
     }
 }
 
@@ -1939,7 +1962,29 @@ function getNextPageButton(){
     return findLink;
 }
 
-function addPlugProductRecord(asin, productInfo){
+// 基于asin参数的防抖函数
+function debounceByAsin(func, wait) {
+    const timeouts = {}; // 使用对象存储不同asin的timeout
+    return function(asin, ...args) {
+        // 清除该asin之前的定时器
+        if (timeouts[asin]) {
+            clearTimeout(timeouts[asin]);
+        }
+        // 为当前asin设置新的定时器
+        timeouts[asin] = setTimeout(() => {
+            func(asin, ...args);
+            // 执行后清理该asin的定时器引用
+            delete timeouts[asin];
+        }, wait);
+    };
+}
+
+
+// 使用基于asin的防抖包装实际函数，设置10秒延迟
+const addPlugProductRecord = debounceByAsin(_addPlugProductRecord, 10000);
+
+// 实际的产品记录添加函数
+function _addPlugProductRecord(asin, productInfo){
     FXLog("[addPlugProductRecord] start");
     chrome.storage.sync.get('userInfo', function(result) {
         FXLog("[addPlugProductRecord] 获取用户信息：",result);
@@ -1991,6 +2036,7 @@ function addPlugProductRecord(asin, productInfo){
         });
     });
 }
+
 
 function getBrandFromDetail(asin,callback){
     fetch(window.location.origin + "/dp/" + asin,{
