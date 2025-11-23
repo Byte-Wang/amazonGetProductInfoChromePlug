@@ -358,57 +358,58 @@ function getFBA(asin, callback) {
                 }
             }
         });
+    });
+}
 
-        // let marketplaceId = "";
+function getFbaByLocal(asin,callback){
+    chrome.storage.sync.get('userInfo', function(result) {
+        FXLog("[fba] 获取用户信息：",result);
+        let marketplaceId = "";
+        if (region == 'ca' || region == 'CA') { // 加拿大
+            marketplaceId = 'A2EUQ1WTGCTBG2';
+        } else if (region == 'us' || region == 'US') { // 美国
+            marketplaceId = 'ATVPDKIKX0DER';
+        } else if (region == 'au' || region == 'AU') { // 澳大利亚
+            marketplaceId = 'A39IBJ37TRP1C6';
+        } else if (region == 'jp' || region == 'JP') { // 日本
+            marketplaceId = 'A1VC38T7YXB528';
+        } else if (region == 'uk' || region == 'UK' || region == 'gb' || region == 'GB') { // 英国
+            marketplaceId = 'A1F83G8C2ARO7P';
+        } else if (region == 'mx' || region == 'MX') { // 墨西哥
+            marketplaceId = 'A1AM78C64UM0Y8';
+        } else if (region == 'de' || region == 'DE') { // 德国
+            marketplaceId = 'A1PA6795UKMFR9';
+        } else if (region == 'es' || region == 'ES') { // 西班牙
+            marketplaceId = 'A1RKKUPIHCS9HS';
+        } else if (region == 'fr' || region == 'FR') { // 法国
+            marketplaceId = 'A13V1IB3VIYZZH';
+        } else if (region == 'it' || region == 'IT') { // 意大利
+            marketplaceId = 'APJ6JRA9NG5V4';
+        } else if (region == 'in' || region == 'IN') { // 印度
+            marketplaceId = 'A21TJRUUN4KGV';
+        }
 
-        
-        // if (region == 'ca' || region == 'CA') { // 加拿大
-        //     marketplaceId = 'A2EUQ1WTGCTBG2';
-        // } else if (region == 'us' || region == 'US') { // 美国
-        //     marketplaceId = 'ATVPDKIKX0DER';
-        // } else if (region == 'au' || region == 'AU') { // 澳大利亚
-        //     marketplaceId = 'A39IBJ37TRP1C6';
-        // } else if (region == 'jp' || region == 'JP') { // 日本
-        //     marketplaceId = 'A1VC38T7YXB528';
-        // } else if (region == 'uk' || region == 'UK' || region == 'gb' || region == 'GB') { // 英国
-        //     marketplaceId = 'A1F83G8C2ARO7P';
-        // } else if (region == 'mx' || region == 'MX') { // 墨西哥
-        //     marketplaceId = 'A1AM78C64UM0Y8';
-        // } else if (region == 'de' || region == 'DE') { // 德国
-        //     marketplaceId = 'A1PA6795UKMFR9';
-        // } else if (region == 'es' || region == 'ES') { // 西班牙
-        //     marketplaceId = 'A1RKKUPIHCS9HS';
-        // } else if (region == 'fr' || region == 'FR') { // 法国
-        //     marketplaceId = 'A13V1IB3VIYZZH';
-        // } else if (region == 'it' || region == 'IT') { // 意大利
-        //     marketplaceId = 'APJ6JRA9NG5V4';
-        // } else if (region == 'in' || region == 'IN') { // 印度
-        //     marketplaceId = 'A21TJRUUN4KGV';
-        // }
-
-        // let url = 'https://das-server.tool4seller.cn/ap/fba/calculate?marketplaceId='+marketplaceId+'&asin='+asin+'&amount=0.00&t='+Date.now();
-        // chrome.runtime.sendMessage({
-        //     action: "makeCorsRequest",
-        //     url: url,
-        //     data: {}
-        // },(response)=> {
-        //     FXLog("[test] 调用getFba请求结果",response);
-        //     if (response && response.status == 1 && response.content && response.content.asin.toLowerCase() == asin.toLowerCase()) {
-        //         let content = response.content;
-        //         let cost = (content.fbaFee+content.storageFee+content.referralFee).toFixed(2); // 成本：亚马逊运费+亚马逊仓储费+亚马逊佣金
-        //         let profit = content.amount - cost; // 利润
-        //         let profitRate = (profit/content.amount*100).toFixed(2); // 利润率
-        //         callback({
-        //             amount: content.amount+"("+content.currencyCode+")",
-        //             totalFBA: cost + "("+content.currencyCode+")",
-        //             profitRate: profitRate + "%"
-        //         });
-        //     } else {
-        //         callback(response);
-        //     }
-        // });
-
-        
+        let url = 'https://das-server.tool4seller.cn/ap/fba/calculate?marketplaceId='+marketplaceId+'&asin='+asin+'&amount=0.00&t='+Date.now();
+        chrome.runtime.sendMessage({
+            action: "makeCorsRequest",
+            url: url,
+            data: {}
+        },(response)=> {
+            FXLog("[test] 调用getFba请求结果",response);
+            if (response && response.status == 1 && response.content && response.content.asin.toLowerCase() == asin.toLowerCase()) {
+                let content = response.content;
+                let cost = (content.fbaFee+content.storageFee+content.referralFee).toFixed(2); // 成本：亚马逊运费+亚马逊仓储费+亚马逊佣金
+                let profit = content.amount - cost; // 利润
+                let profitRate = (profit/content.amount*100).toFixed(2); // 利润率
+                callback({
+                    amount: content.amount+"("+content.currencyCode+")",
+                    totalFBA: cost + "("+content.currencyCode+")",
+                    profitRate: profitRate + "%"
+                });
+            } else {
+                callback(response);
+            }
+        });
 
     });
 }
@@ -594,6 +595,7 @@ function getMainContentView(asin = "") {
                                         <div class=\"feixun_plug_col-3\"><b>重量：</b><span id=\"feixun_plug_weight"+idSubfix+"\"></span></div>\
                                         <div class=\"feixun_plug_col-3\"><b>利润率：</b><span id=\"feixun_plug_profitRate"+idSubfix+"\"></span></div>\
                                         <div class=\"feixun_plug_col-3\"><b>购物车：</b><span id=\"feixun_plug_amount"+idSubfix+"\"></span></div>\
+                                        <input type=\"button\" id=\"getFBA_button"+idSubfix+"\" value=\"查询FBA\" />\
                                     </div>\
                                     <div class=\"feixun_plug_row\">\
                                         <div class=\"feixun_plug_col-6\" ><b>上架时间：</b><span id=\"feixun_plug_AvailableDate"+idSubfix+"\"></span></div>\
@@ -603,6 +605,51 @@ function getMainContentView(asin = "") {
                                     <div class=\"feixun_plug_last_load_time\" id=\"feixun_plug_last_load_time"+idSubfix+"\"></div>\
                                     ";
     return contentView;
+}
+
+function initGetFbaButton(asin,btnId){
+
+    const idSubfix = (asin && asin != "") ? ("_"+asin) : "";
+    const GetFbaButton = document.getElementById(btnId);
+    GetFbaButton.addEventListener('click', function() {
+        updateInfo("feixun_plug_amount"+idSubfix,"查询中");
+        updateInfo("feixun_plug_totalFba"+idSubfix,"查询中");
+        updateInfo("feixun_plug_profitRate"+idSubfix,"查询中");
+        getFBA(asin,(response)=>{
+            FXLog("[fba]["+asin+"] 查询fba结果：",response.desc);
+            if (response.amount) {
+                FXLog("[fba]["+asin+"] 返回值有效，展示数据");
+                var classType = "feixun_plug_flag_green";
+                if (parseFloat(response.amount) < window.feixunUserConfig.amount) {
+                    classType = "feixun_plug_flag_red"
+                }
+
+                var profitRateClassType = "feixun_plug_flag_green";
+                if (parseFloat(response.profitRate) < window.feixunUserConfig.profitRate) {
+                    profitRateClassType = "feixun_plug_flag_red"
+                }
+
+                updateInfo("feixun_plug_amount"+idSubfix,"<span class=\""+classType+"\">" + response.amount + "</span>");
+                updateInfo("feixun_plug_totalFba"+idSubfix,response.totalFBA);
+                updateInfo("feixun_plug_profitRate"+idSubfix,"<span class=\""+profitRateClassType+"\">" + response.profitRate + "</span>");
+
+                checkPduductInfoIsComplete(null,asin,'amount',response.amount);
+                checkPduductInfoIsComplete(null,asin,'totalFba',response.totalFBA);
+                checkPduductInfoIsComplete(null,asin,'profitRate',response.profitRate);
+            } else {
+                FXLog("[fba]["+asin+"] 显示查询失败");
+                updateInfo("feixun_plug_amount"+idSubfix,"查询失败");
+                updateInfo("feixun_plug_totalFba"+idSubfix,"查询失败");
+                updateInfo("feixun_plug_profitRate"+idSubfix,"查询失败");
+
+                checkPduductInfoIsComplete(null,asin,'amount',0);
+                checkPduductInfoIsComplete(null,asin,'totalFba',0);
+                checkPduductInfoIsComplete(null,asin,'profitRate',0);
+            }
+        });
+    });
+
+    
 }
 
 function showInfo(info){
@@ -1459,6 +1506,8 @@ function parserToTitleFeatureDiv(retryTimes){
         });
     });
 
+    initGetFbaButton(asin,"getFBA_button");
+
     renderProductInfo(brand,region,null,false,null,false);
 }
 
@@ -1676,8 +1725,15 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
                     'totalFBA': currentAsinCache['totalFba']
                 });
             } else {
-                FXLog("[fba]["+asin+"] 开始查询fba");
-                getFBA(asin,getFBACallback);
+                // FXLog("[fba]["+asin+"] 开始查询fba");
+                // getFBA(asin,getFBACallback);
+                updateInfo("feixun_plug_amount"+idSubfix,"--");
+                updateInfo("feixun_plug_totalFba"+idSubfix,"--");
+                updateInfo("feixun_plug_profitRate"+idSubfix,"--");
+
+                checkPduductInfoIsComplete(currentAsinCache,asin,'amount',0);
+                checkPduductInfoIsComplete(currentAsinCache,asin,'totalFba',0);
+                checkPduductInfoIsComplete(currentAsinCache,asin,'profitRate',0);
             }
             
         }
@@ -2110,7 +2166,7 @@ function parserToSerchListView(){
                     });
                 });
 
-
+                initGetFbaButton(asin,"getFBA_button_"+asin);
 /*
                 checkAsin(asin,(response)=>{
                     if (response && response.code == 0) {
