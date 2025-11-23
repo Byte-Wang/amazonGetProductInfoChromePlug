@@ -7,7 +7,7 @@
   let progressCount = 0;
   let qualifiedCount = 0;
   let processedIds = new Set();
-  let minDailySalesInput, minRatingInput, statusText, progressText, toggleBtn;
+  let minDailySalesInput, minRatingInput, statusText, progressText, toggleBtn, minPriceInput, maxPriceInput;
 
   const SETTINGS_KEY = 'temuCollectionSettings';
 
@@ -59,6 +59,8 @@
         const s = result[SETTINGS_KEY] || {};
         if (minDailySalesInput) minDailySalesInput.value = s.minDailySales !== undefined ? s.minDailySales : '';
         if (minRatingInput) minRatingInput.value = s.minRating !== undefined ? s.minRating : '';
+        if (minPriceInput) minPriceInput.value = s.minPrice !== undefined ? s.minPrice : '0';
+        if (maxPriceInput) maxPriceInput.value = s.maxPrice !== undefined ? s.maxPrice : '500';
         log('加载采集设置', s);
       });
     } catch (e) {
@@ -71,6 +73,8 @@
       const s = {
         minDailySales: Number(minDailySalesInput?.value || 0),
         minRating: Number(minRatingInput?.value || 0),
+        minPrice: Number(minPriceInput?.value || 0),
+        maxPrice: Number(maxPriceInput?.value || 500),
       };
       chrome.storage.sync.set({ [SETTINGS_KEY]: s }, () => {
         log('保存采集设置', s);
@@ -310,6 +314,52 @@
     minRatingInput.addEventListener('change', saveTemuSettings);
     minRatingInput.addEventListener('blur', saveTemuSettings);
 
+    const priceRangeLabel = document.createElement('label');
+    priceRangeLabel.textContent = '价格采集范围';
+    priceRangeLabel.style.fontSize = '12px';
+    priceRangeLabel.style.color = '#555';
+
+    const priceRangeWrapper = document.createElement('div');
+    priceRangeWrapper.style.display = 'flex';
+    priceRangeWrapper.style.alignItems = 'center';
+    priceRangeWrapper.style.gap = '4px';
+
+    minPriceInput = document.createElement('input');
+    minPriceInput.type = 'number';
+    minPriceInput.placeholder = '最低';
+    minPriceInput.min = '0';
+    minPriceInput.step = '0.01';
+    minPriceInput.style.width = '45%';
+    minPriceInput.style.boxSizing = 'border-box';
+    minPriceInput.style.padding = '6px 8px';
+    minPriceInput.style.border = '1px solid #ccc';
+    minPriceInput.style.borderRadius = '6px';
+    minPriceInput.addEventListener('change', saveTemuSettings);
+    minPriceInput.addEventListener('blur', saveTemuSettings);
+
+    const dashSeparator = document.createElement('span');
+    dashSeparator.textContent = '-';
+    dashSeparator.style.color = '#666';
+    dashSeparator.style.minWidth = '10px';
+    dashSeparator.style.textAlign = 'center';
+
+    maxPriceInput = document.createElement('input');
+    maxPriceInput.type = 'number';
+    maxPriceInput.placeholder = '最高';
+    maxPriceInput.min = '0';
+    maxPriceInput.step = '0.01';
+    maxPriceInput.style.width = '45%';
+    maxPriceInput.style.boxSizing = 'border-box';
+    maxPriceInput.style.padding = '6px 8px';
+    maxPriceInput.style.border = '1px solid #ccc';
+    maxPriceInput.style.borderRadius = '6px';
+    maxPriceInput.addEventListener('change', saveTemuSettings);
+    maxPriceInput.addEventListener('blur', saveTemuSettings);
+
+    priceRangeWrapper.appendChild(minPriceInput);
+    priceRangeWrapper.appendChild(dashSeparator);
+    priceRangeWrapper.appendChild(maxPriceInput);
+
     // 加载缓存的采集设置
     loadTemuSettings();
 
@@ -323,6 +373,8 @@
 
     conditionWrapper.appendChild(leftCol);
     conditionWrapper.appendChild(rightCol);
+    conditionWrapper.appendChild(priceRangeLabel);
+    conditionWrapper.appendChild(priceRangeWrapper);
 
     // 下半部分：采集操作
     const actionWrapper = document.createElement('div');
@@ -506,6 +558,8 @@
   async function collectLoop() {
     const minDailySales = Number(minDailySalesInput?.value || 0);
     const minRating = Number(minRatingInput?.value || 0);
+    const minPrice = Number(minPriceInput?.value || 0);
+    const maxPrice = Number(maxPriceInput?.value || 500);
 
     let noNewCount = 0;
     let lastProductCount = 0;
@@ -617,8 +671,11 @@
         const passCategory = isAllowedCategory(category);
         log('分类过滤', { category, passCategory });
 
+        const passPrice = price >= minPrice && price <= maxPrice;
+        log('价格过滤', { price, minPrice, maxPrice, passPrice });
+
         // 构造上报对象并过滤
-        const willReport = daily_sales >= minDailySales && rating >= minRating && passCategory;
+        const willReport = daily_sales >= minDailySales && rating >= minRating && passCategory && passPrice; 
         const productData = {
           product_id: productId,
           price,
@@ -637,7 +694,8 @@
          if (daily_sales < minDailySales) failureReasons.push(`日销量未达标（当前 ${daily_sales}，需≥${minDailySales}）`);
          if (rating < minRating) failureReasons.push(`评分未达标（当前 ${rating}，需≥${minRating}）`);
          if (!passCategory) failureReasons.push(`分类不在白名单（${category || '未知'}）`);
-         log('上报准备', { product_id: productId, daily_sales, rating, category, passCategory, willReport, failureReasons });
+         if (!passPrice) failureReasons.push(`价格不在范围（${price}，${minPrice}-${maxPrice}）`);
+         log('上报准备', { product_id: productId, daily_sales, rating, category, passCategory, passPrice, willReport, failureReasons });
 
         if (!willReport) {
           setStatusCard(statusCard, 'skip', failureReasons.join('；') || '不符合采集条件');
