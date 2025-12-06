@@ -300,6 +300,17 @@
     window.scrollTo({top:0,behavior:'auto'})
   }
 
+  function clickSearchButton(){
+    const searchButton=doc.querySelector('div[class^="SearchBox-module__searchButton"]')
+    if(!searchButton){
+      appendLog('未找到搜索按钮')
+      return false
+    }
+    searchButton.click()
+    appendLog('已点击搜索按钮')
+    return true
+  }
+
   function parseRecommendedTotal(featuredOfferContainer){
     const spans=featuredOfferContainer.querySelectorAll('span')
     let targetSpan=null
@@ -427,6 +438,10 @@
     appendLog('本页发现产品数 '+String(products.length))
     let editedCount=0
     for(const product of products){
+      if(runtimeState.running == false){
+        appendLog('已停止')
+        continue
+      }
       const skuText=product.getAttribute('data-sku')||''
       const nameText=findProductName(product)
       appendLog('开始检查 产品 SKU '+skuText+(nameText?(' 名称 '+nameText):''))
@@ -445,6 +460,7 @@
         appendLog('推荐总价解析失败，跳过 SKU '+skuText)
         continue
       }
+      appendLog('计算出推荐报价： '+skuText+' '+String(recommendedTotal))
       const newPrice=recommendedTotal+cfg.delta
       const inputs=findPriceInputs(product)
       if(inputs.length<2){
@@ -523,20 +539,33 @@
   }
 
   async function runOneCycle(){
-    if(runtimeState.running){
+    if(runtimeState.running == false){
       return
     }
     const cfg=collectSettingsFromInputs(globalUi.settingsGrid)
     saveSettings(cfg)
-    runtimeState.running=true
-    globalUi.actionBar.startButton.textContent='停止改价'
     scrollPageToTop()
-    await wait(1000)
     appendLog('已滚动到页面顶部')
+    await wait(1000)
+    if(runtimeState.running == false){
+      appendLog('已停止')
+      return
+    }
+    clickSearchButton()
+    appendLog('点击搜索按钮刷新列表')
+    await wait(8000)
+    if(runtimeState.running == false){
+      appendLog('已停止')
+      return
+    }
     appendLog('开始改价')
     try{
       let keepGoing=true
       while(keepGoing){
+        if(runtimeState.running == false){
+          appendLog('已停止')
+          break
+        }
         const count=await scanCurrentPage(cfg)
         appendLog('滚动至页面底部，尝试加载更多产品')
         scrollPageToBottom()
@@ -552,7 +581,6 @@
         await wait(1000)
       }
     }finally{
-      runtimeState.running=false
       appendLog('本轮完成')
     }
   }
@@ -564,12 +592,15 @@
         globalUi.actionBar.startButton.textContent='开始改价'
         appendLog('已停止')
         return
+      } else {
+        globalUi.actionBar.startButton.textContent='停止改价'
+        runtimeState.running=true
       }
       await runOneCycle()
       const currentSettings=loadSettings()
       const delayMs=Math.max(1,Number(currentSettings.interval||30))*60000
       runtimeState.timer=setTimeout(async function loop(){
-        if(runtimeState.running){
+        if(runtimeState.running == false){
           return
         }
         await runOneCycle()
