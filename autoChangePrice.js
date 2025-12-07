@@ -434,6 +434,25 @@
     return fullText.includes('您的标准商品价格加上运费高于相应价格');
   }
 
+  function parseTotalFee(productElement){
+    const feesCell=productElement.querySelector('div.estimated-fees-cell');
+    if(!feesCell){
+      return null;
+    }
+    const firstRow=feesCell.querySelector('div[class^="JanusSplitBox-module__row--"]');
+    if(!firstRow){
+      return null;
+    }
+    const labels=firstRow.querySelectorAll('kat-label[emphasis]');
+    for(const label of labels){
+      const emp=(label.getAttribute('emphasis')||'').trim();
+      if(/^[A-Za-z]{1,3}\$[\d.,]+$/.test(emp)){
+        return parseFloat(emp.replace(/^[A-Za-z]{1,3}\$/,'').replace(/,/g,''));
+      }
+    }
+    return null;
+  }
+
   async function scanCurrentPage(cfg){
     const products=Array.from(doc.querySelectorAll('div[data-sku]'));
     appendLog('本页发现产品数 '+String(products.length));
@@ -468,6 +487,16 @@
         appendLog('未找到价格输入框，跳过 SKU '+skuText);
         continue;
       }
+
+      const totalFee=parseTotalFee(product);
+      if(totalFee!=null){
+        const threshold=totalFee*0.3;
+        if(newPrice<threshold){
+          appendLog('新价格 '+Number(newPrice).toFixed(2)+' 低于总费用30% '+Number(threshold).toFixed(2)+'，跳过 SKU '+skuText);
+          continue;
+        }
+      }
+
       const priceInput=inputs[0];
       const minPriceInput=inputs[1];
       const minPriceValue=newPrice+cfg.minDelta;
