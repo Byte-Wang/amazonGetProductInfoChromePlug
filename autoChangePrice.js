@@ -1,11 +1,11 @@
 (()=>{
-  const targetUrl='https://sellercentral.amazon.com/myinventory/inventory';
+  const targetPath='/myinventory/inventory';
   const doc=document;
   const storageKey='agp_settings';
   const runtimeState={running:false,timer:null};
 
   function isTargetPage(){
-    return location.href.startsWith(targetUrl);
+    return location.href.includes(targetPath);
   }
 
   function loadSettings(){
