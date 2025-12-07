@@ -321,12 +321,14 @@
       }
     }
     if(!targetSpan){
+      appendLog('匹配不到span');
       return null;
     }
     const rawText=targetSpan.textContent||'';
     const normalized=rawText.replace(/\s+/g,'');
-    const match=normalized.match(/([A-Za-z]{3}\$)?([\d.,]+)\+([A-Za-z]{3}\$)?([\d.,]+)/);
+    const match=normalized.match(/([A-Za-z]{1,3}\$)?([\d.,]+)\+([A-Za-z]{1,3}\$)?([\d.,]+)/);
     if(!match){
+      appendLog('正则解析失败'+rawText);
       return null;
     }
     const price=parseFloat(match[2].replace(/,/g,''));
