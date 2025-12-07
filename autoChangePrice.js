@@ -504,22 +504,20 @@
       appendLog('已是最后一页');
       return false;
     }
-    const pageInput=doc.querySelector('kat-input[class^="PageSelector-module__pageInput--"]');
-    const goButton=doc.querySelector('kat-button[class^="PageSelector-module__goButton--"]');
-    if(pageInput){
-      pageInput.setAttribute('value',String(currentPage+1));
-      pageInput.dispatchEvent(new Event('change',{bubbles:true}));
-    }
-    if(goButton&&goButton.getAttribute('disabled')!=='true'){
-      goButton.click();
+    const nextNavSpan=(pagination.shadowRoot && pagination.shadowRoot.querySelector('span[part="pagination-nav-right"]'))
+      || pagination.querySelector('span[part="pagination-nav-right"]');
+    if(nextNavSpan){
+      const cls=nextNavSpan.getAttribute('class')||'';
+      if(cls.split(/\s+/).includes('end')||/\bend\b/.test(cls)){
+        appendLog('已是最后一页');
+        return false;
+      }
+      nextNavSpan.click();
       appendLog('已触发翻页至 '+String(currentPage+1));
       return true;
     }
-    const url=new URL(location.href);
-    url.searchParams.set('page',String(currentPage+1));
-    appendLog('通过地址跳转翻页至 '+String(currentPage+1));
-    location.href=url.toString();
-    return true;
+    appendLog('未找到下一页按钮');
+    return false;
   }
 
   async function waitForMoreProducts(previousCount){
