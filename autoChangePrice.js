@@ -200,12 +200,14 @@
     const intervalInputField=createInputField('检测间隔(分钟)','number','1','30','agp_interval');
     const priceDeltaInputField=createInputField('改价幅度','number','0.01','-0.1','agp_delta');
     const minPriceDeltaInputField=createInputField('最低价幅度','number','0.01','-0.5','agp_min_delta');
+    const floorRatioInputField=createInputField('价格底线比例','number','0.01','1.3','agp_floor_ratio');
 
     container.appendChild(intervalInputField.wrap);
     container.appendChild(priceDeltaInputField.wrap);
     container.appendChild(minPriceDeltaInputField.wrap);
+    container.appendChild(floorRatioInputField.wrap);
 
-    return {container,intervalInputField,priceDeltaInputField,minPriceDeltaInputField};
+    return {container,intervalInputField,priceDeltaInputField,minPriceDeltaInputField,floorRatioInputField};
   }
 
   function createLogBox(){
@@ -246,19 +248,23 @@
     const interval=typeof cfg.interval==='number'?String(cfg.interval):'30';
     const delta=typeof cfg.delta==='number'?String(cfg.delta):'-0.1';
     const minDelta=typeof cfg.minDelta==='number'?String(cfg.minDelta):'-0.5';
+    const floorRatio=typeof cfg.floorRatio==='number'?String(cfg.floorRatio):'1.3';
     settingsGrid.intervalInputField.input.value=interval;
     settingsGrid.priceDeltaInputField.input.value=delta;
     settingsGrid.minPriceDeltaInputField.input.value=minDelta;
+    settingsGrid.floorRatioInputField.input.value=floorRatio;
   }
 
   function collectSettingsFromInputs(settingsGrid){
     const intervalValue=settingsGrid.intervalInputField.input.value||'30';
     const deltaValue=settingsGrid.priceDeltaInputField.input.value||'-0.1';
     const minDeltaValue=settingsGrid.minPriceDeltaInputField.input.value||'-0.5';
+    const floorRatioValue=settingsGrid.floorRatioInputField.input.value||'1.3';
     const intervalNumber=Math.max(1,Number(intervalValue));
     const deltaNumber=Number(deltaValue);
     const minDeltaNumber=Number(minDeltaValue);
-    const cfg={interval:intervalNumber,delta:deltaNumber,minDelta:minDeltaNumber};
+    const floorRatioNumber=Number(floorRatioValue);
+    const cfg={interval:intervalNumber,delta:deltaNumber,minDelta:minDeltaNumber,floorRatio:floorRatioNumber};
     return cfg;
   }
 
@@ -270,6 +276,7 @@
     settingsGrid.intervalInputField.input.addEventListener('change',onChange);
     settingsGrid.priceDeltaInputField.input.addEventListener('change',onChange);
     settingsGrid.minPriceDeltaInputField.input.addEventListener('change',onChange);
+    settingsGrid.floorRatioInputField.input.addEventListener('change',onChange);
   }
 
   function setupToolButton(toolButton){
@@ -338,22 +345,15 @@
     }
     const total=price+shipping;
     const totalFixed=Number(total.toFixed(2));
-    appendLog('解析推荐总价 '+String(totalFixed));
     return totalFixed;
   }
 
   function findProductName(productElement){
-    const selectors=[
-      '[data-test-id="ProductTitle"]',
-      'div[class*="ProductTitle"]',
-      'div[class^="VolusProductCard-module__title"]',
-      'kat-rich-text',
-      'a[href]:not([href="#"])'
-    ];
-    for(const sel of selectors){
-      const el=productElement.querySelector(sel);
-      if(el){
-        const txt=(el.textContent||'').trim();
+    const textContainer=productElement.querySelector('div[class^="ProductDetails-module__textFieldsContainer--"]');
+    if(textContainer){
+      const anchor=textContainer.querySelector('a');
+      if(anchor){
+        const txt=(anchor.textContent||'').trim();
         if(txt){
           return txt;
         }
@@ -362,6 +362,20 @@
     return '';
   }
 
+
+
+  function findProductStatus(productElement){
+    const statusContainer=productElement.querySelector('div[class^="Status-module__container--"]');
+    if(!statusContainer){
+      return '';
+    }
+    const label=statusContainer.querySelector('kat-label');
+    if(!label){
+      return '';
+    }
+    const emp=(label.getAttribute('emphasis')||'').trim();
+    return emp;
+  }
   function setInputValue(inputElement,value){
     if(!inputElement){
       return;
@@ -439,15 +453,18 @@
     if(!feesCell){
       return null;
     }
-    const firstRow=feesCell.querySelector('div[class^="JanusSplitBox-module__row--"]');
-    if(!firstRow){
-      return null;
-    }
-    const labels=firstRow.querySelectorAll('kat-label[emphasis]');
-    for(const label of labels){
-      const emp=(label.getAttribute('emphasis')||'').trim();
-      if(/^([A-Za-z]{0,3}\$|£|€|¥|₹)?[\d.,]+$/.test(emp)){
-        return parseFloat(emp.replace(/^[^\d]*/,'').replace(/,/g,''));
+    const rows=feesCell.querySelectorAll('div[class^="JanusSplitBox-module__row--"]');
+    for(const row of rows){
+      const labels=row.querySelectorAll('kat-label[emphasis]');
+      if(labels.length>=2){
+        const first=(labels[0].getAttribute('emphasis')||'').trim();
+        const second=(labels[1].getAttribute('emphasis')||'').trim();
+        if(first==='总费用'){
+          const m=second.match(/[\d.,]+/);
+          if(m){
+            return parseFloat(m[0].replace(/,/g,''));
+          }
+        }
       }
     }
     return null;
@@ -462,17 +479,23 @@
         appendLog('已停止');
         continue;
       }
+      const productStatus=findProductStatus(product);
+      
       const skuText=product.getAttribute('data-sku')||'';
       const nameText=findProductName(product);
-      appendLog('开始检查 产品 SKU '+skuText+(nameText?(' 名称 '+nameText):''));
+      if(productStatus && productStatus!=='在售'){
+        appendLog('状态 '+productStatus+' 非在售，跳过 SKU '+skuText);
+        continue;
+      }
+      // appendLog('开始检查 产品 SKU '+skuText+(nameText?(' 名称 '+nameText):''));
       const featuredOffer=product.querySelector('div[data-test-id="FeaturedOfferPrice"]');
       if(!featuredOffer){
         appendLog('未找到推荐报价区域，跳过 SKU '+skuText);
         continue;
       }
       const needAdjust=isOverpriced(featuredOffer);
-      appendLog('是否需要改价 '+(needAdjust?'是':'否')+' SKU '+skuText);
       if(!needAdjust){
+        appendLog('没有新的推荐报价，不改价 '+'跳过 SKU '+skuText);
         continue;
       }
       const recommendedTotal=parseRecommendedTotal(featuredOffer);
@@ -480,7 +503,7 @@
         appendLog('推荐总价解析失败，跳过 SKU '+skuText);
         continue;
       }
-      appendLog('计算出推荐报价： '+skuText+' '+String(recommendedTotal));
+      // appendLog('计算出推荐报价： '+skuText+' '+String(recommendedTotal));
       const newPrice=recommendedTotal+cfg.delta;
       const inputs=findPriceInputs(product);
       if(inputs.length<2){
@@ -491,25 +514,26 @@
       const totalFee=parseTotalFee(product);
       let threshold=0;
       if(totalFee!=null){
-        threshold=totalFee*0.3;
+        threshold=totalFee*cfg.floorRatio;
         if(newPrice <= threshold){
-          appendLog('新价格 '+Number(newPrice).toFixed(2)+' 低于总费用30% '+Number(threshold).toFixed(2)+'，跳过 SKU '+skuText);
+          appendLog('新价格 '+Number(newPrice).toFixed(2)+' 低于总费用*'+cfg.floorRatio+' 的下限('+Number(threshold).toFixed(2)+')，跳过 SKU '+skuText);
           continue;
         }
       } else {
         appendLog('总费用解析失败，跳过 SKU '+skuText);
         continue;
       }
-      appendLog('新价格 大于 总费用*30%的下限：'+Number(threshold).toFixed(2)+" ,允许改价");
-
+      // appendLog('允许改价，最低阈值 '+Number(totalFee).toFixed(2)+' * '+cfg.floorRatio+'='+Number(threshold).toFixed(2));
+      
       const priceInput=inputs[0];
       const minPriceInput=inputs[1];
+      const originalPriceText = priceInput.value;
+      const originalMinText = minPriceInput.value;
       const minPriceValue=newPrice+cfg.minDelta;
-      appendLog('计划设置 价格 '+Number(newPrice).toFixed(2)+' 最低价 '+Number(minPriceValue).toFixed(2)+' SKU '+skuText);
+      appendLog('SKU:['+skuText + ']符合条件，准备改价， 原价：'+originalPriceText+' -> 新价格 '+Number(newPrice).toFixed(2));
       setInputValue(priceInput,newPrice);
       setInputValue(minPriceInput,minPriceValue);
       editedCount++;
-      appendLog('已设置 SKU '+skuText);
       await wait(1000);
     }
     if(editedCount>0){
@@ -611,7 +635,7 @@
         if(!moved){
           break;
         }
-        await wait(1000);
+        await wait(10000);
       }
     }finally{
       appendLog('本轮完成');
