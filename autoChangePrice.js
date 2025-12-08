@@ -326,7 +326,7 @@
     }
     const rawText=targetSpan.textContent||'';
     const normalized=rawText.replace(/\s+/g,'');
-    const match=normalized.match(/([A-Za-z]{1,3}\$)?([\d.,]+)\+([A-Za-z]{1,3}\$)?([\d.,]+)/);
+    const match=normalized.match(/([A-Za-z]{0,5}\$|£|€|¥|₹)?([\d.,]+)\+([A-Za-z]{0,5}\$|£|€|¥|₹)?([\d.,]+)/);
     if(!match){
       appendLog('正则解析失败'+rawText);
       return null;
@@ -446,8 +446,8 @@
     const labels=firstRow.querySelectorAll('kat-label[emphasis]');
     for(const label of labels){
       const emp=(label.getAttribute('emphasis')||'').trim();
-      if(/^[A-Za-z]{1,3}\$[\d.,]+$/.test(emp)){
-        return parseFloat(emp.replace(/^[A-Za-z]{1,3}\$/,'').replace(/,/g,''));
+      if(/^([A-Za-z]{0,3}\$|£|€|¥|₹)?[\d.,]+$/.test(emp)){
+        return parseFloat(emp.replace(/^[^\d]*/,'').replace(/,/g,''));
       }
     }
     return null;
@@ -489,13 +489,18 @@
       }
 
       const totalFee=parseTotalFee(product);
+      let threshold=0;
       if(totalFee!=null){
-        const threshold=totalFee*0.3;
-        if(newPrice<threshold){
+        threshold=totalFee*0.3;
+        if(newPrice <= threshold){
           appendLog('新价格 '+Number(newPrice).toFixed(2)+' 低于总费用30% '+Number(threshold).toFixed(2)+'，跳过 SKU '+skuText);
           continue;
         }
+      } else {
+        appendLog('总费用解析失败，跳过 SKU '+skuText);
+        continue;
       }
+      appendLog('新价格 大于 总费用*30%的下限：'+Number(threshold).toFixed(2)+" ,允许改价");
 
       const priceInput=inputs[0];
       const minPriceInput=inputs[1];
