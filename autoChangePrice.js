@@ -530,6 +530,12 @@
       const originalPriceText = priceInput.value;
       const originalMinText = minPriceInput.value;
       const minPriceValue=newPrice+cfg.minDelta;
+
+      if (Number(originalPriceText).toFixed(2) === Number(newPrice).toFixed(2)) {
+        appendLog('价格未改变，跳过 SKU '+skuText);
+        continue;
+      }
+
       appendLog('SKU:['+skuText + ']符合条件，准备改价， 原价：'+originalPriceText+' -> 新价格 '+Number(newPrice).toFixed(2));
       setInputValue(priceInput,newPrice);
       setInputValue(minPriceInput,minPriceValue);
