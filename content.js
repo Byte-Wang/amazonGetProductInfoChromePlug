@@ -618,9 +618,8 @@ function getMainContentView(asin = "") {
     return contentView;
 }
 
-function initGetFbaButton(asin,btnId){
+function initGetFbaButton(asin,btnId,idSubfix){
 
-    const idSubfix = (asin && asin != "") ? ("_"+asin) : "";
     const GetFbaButton = document.getElementById(btnId);
     GetFbaButton.addEventListener('click', function() {
         updateInfo("feixun_plug_amount"+idSubfix,"查询中");
@@ -1517,7 +1516,7 @@ function parserToTitleFeatureDiv(retryTimes){
         });
     });
 
-    initGetFbaButton(asin,"getFBA_button");
+    initGetFbaButton(asin,"getFBA_button","");
 
     renderProductInfo(brand,region,null,false,null,false);
 }
@@ -2211,8 +2210,9 @@ function parserToSerchListView(){
                         });
                     });
                 });
-
-                initGetFbaButton(asin,"getFBA_button_"+asin);
+                
+                const idSubfix = (asin && asin != "") ? ("_"+asin) : "";
+                initGetFbaButton(asin,"getFBA_button_"+asin,idSubfix);
 /*
                 checkAsin(asin,(response)=>{
                     if (response && response.code == 0) {

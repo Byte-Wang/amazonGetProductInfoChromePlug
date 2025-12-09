@@ -629,6 +629,7 @@
         await wait(300);
         const loaded=await waitForMoreProducts(count);
         if(loaded){
+          await wait(5000);
           continue;
         }
         const moved=await goToNextPage();
