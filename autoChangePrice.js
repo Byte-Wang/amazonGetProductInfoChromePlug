@@ -646,7 +646,6 @@
       const skuText=product.getAttribute('data-sku')||'';
       const nameText=findProductName(product);
       const stock=parseInventoryCount(product);
-      appendLog('库存 '+(stock!=null?String(stock):'未知'));
       if(productStatus && productStatus!=='在售'){
         appendLog('状态 '+productStatus+' 非在售，跳过 SKU '+skuText);
         continue;
@@ -699,6 +698,7 @@
                 appendLog('超过'+String(cfg.autoDays)+'天无变化，但新价不满足总费用*'+String(cfg.floorRatio)+' 下限，跳过 SKU '+skuText);
               }else{
                 appendLog('超过'+String(cfg.autoDays)+'天无变化，按当前价改价 '+String(currPriceNum.toFixed(2))+' -> '+String(autoNewPrice.toFixed(2))+' SKU '+skuText);
+                appendLog('SKU:['+skuText + ']符合条件，准备改价， 原价：'+String(currPriceNum.toFixed(2))+' -> 新价格 '+String(autoNewPrice).toFixed(2));
                 setInputValue(priceInput,autoNewPrice);
                 setInputValue(minPriceInput,autoNewPrice+cfg.minDelta);
                 editedCount++;
