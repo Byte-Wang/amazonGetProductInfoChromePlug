@@ -2,6 +2,7 @@
   const targetPath='/myinventory/inventory';
   const doc=document;
   const storageKey='agp_settings';
+  const logStorageKey='agp_logs';
   const runtimeState={running:false,timer:null};
 
   function isTargetPage(){
@@ -31,6 +32,16 @@
     line.textContent=now+' '+text;
     logBox.appendChild(line);
     logBox.scrollTop=logBox.scrollHeight;
+    try{
+      const nowTs=Date.now();
+      const cutoff=nowTs-7*24*60*60*1000;
+      const raw=localStorage.getItem(logStorageKey)||'[]';
+      let entries=[];
+      try{entries=JSON.parse(raw)||[];}catch(e){entries=[];}
+      entries.push({ts:nowTs,text});
+      entries=entries.filter(function(x){return typeof x==='object'&&x&&typeof x.ts==='number'&&x.ts>=cutoff;});
+      localStorage.setItem(logStorageKey,JSON.stringify(entries));
+    }catch(e){}
   }
 
   function createFloatButton(){
@@ -239,8 +250,35 @@
     startButton.style.borderRadius='6px';
     startButton.style.cursor='pointer';
 
+    const exportButton=doc.createElement('button');
+    exportButton.id='agp_export_logs';
+    exportButton.textContent='导出日志';
+    exportButton.style.background='#52c41a';
+    exportButton.style.color='#fff';
+    exportButton.style.border='none';
+    exportButton.style.padding='8px 12px';
+    exportButton.style.borderRadius='6px';
+    exportButton.style.cursor='pointer';
+    exportButton.addEventListener('click',function(){
+      try{
+        const raw=localStorage.getItem(logStorageKey)||'[]';
+        let entries=[];
+        try{entries=JSON.parse(raw)||[];}catch(e){entries=[];}
+        const content=entries.map(function(x){var d=new Date(x.ts||Date.now());return d.toLocaleString()+' '+(x.text||'');}).join('\r\n');
+        const blob=new Blob([content],{type:'text/plain'});
+        const url=URL.createObjectURL(blob);
+        const a=doc.createElement('a');
+        a.href=url;
+        a.download='agp_logs_'+new Date().toISOString().slice(0,10)+'.txt';
+        doc.body.appendChild(a);
+        a.click();
+        setTimeout(function(){doc.body.removeChild(a);URL.revokeObjectURL(url);},0);
+      }catch(e){}
+    });
+
     container.appendChild(startButton);
-    return {container,startButton};
+    container.appendChild(exportButton);
+    return {container,startButton,exportButton};
   }
 
   function applySettingsToInputs(settingsGrid){
@@ -285,6 +323,22 @@
       if(modalOverlay){
         modalOverlay.style.display='flex';
         applySettingsToInputs(globalUi.settingsGrid);
+        try{
+          const raw=localStorage.getItem(logStorageKey)||'[]';
+          let entries=[];
+          try{entries=JSON.parse(raw)||[];}catch(e){entries=[];}
+          const logBox=globalUi.logBox;
+          if(logBox){
+            logBox.innerHTML='';
+            for(const x of entries){
+              const line=doc.createElement('div');
+              const d=new Date((x&&typeof x.ts==='number')?x.ts:Date.now());
+              line.textContent=d.toLocaleString()+' '+(x&&x.text?x.text:'');
+              logBox.appendChild(line);
+            }
+            logBox.scrollTop=logBox.scrollHeight;
+          }
+        }catch(e){}
       }
     });
   }
