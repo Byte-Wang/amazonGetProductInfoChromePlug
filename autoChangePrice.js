@@ -212,13 +212,15 @@
     const priceDeltaInputField=createInputField('改价幅度','number','0.01','-0.01','agp_delta');
     const minPriceDeltaInputField=createInputField('最低价幅度','number','0.01','-0.5','agp_min_delta');
     const floorRatioInputField=createInputField('价格底线比例','number','0.01','2','agp_floor_ratio');
+    const autoDaysInputField=createInputField('x天库存无变化自动改价','number','1','3','agp_auto_days');
 
     container.appendChild(intervalInputField.wrap);
     container.appendChild(priceDeltaInputField.wrap);
     container.appendChild(minPriceDeltaInputField.wrap);
     container.appendChild(floorRatioInputField.wrap);
+    container.appendChild(autoDaysInputField.wrap);
 
-    return {container,intervalInputField,priceDeltaInputField,minPriceDeltaInputField,floorRatioInputField};
+    return {container,intervalInputField,priceDeltaInputField,minPriceDeltaInputField,floorRatioInputField,autoDaysInputField};
   }
 
   function createLogBox(){
@@ -264,7 +266,7 @@
         const raw=localStorage.getItem(logStorageKey)||'[]';
         let entries=[];
         try{entries=JSON.parse(raw)||[];}catch(e){entries=[];}
-        const content=entries.map(function(x){var d=new Date(x.ts||Date.now());return d.toLocaleString()+' '+(x.text||'');}).join('\r\n');
+        const content=entries.map(function(x){var d=new Date(x.ts||Date.now());return d.toLocaleString()+' '+(x.text||'');}).join('\n');
         const blob=new Blob([content],{type:'text/plain'});
         const url=URL.createObjectURL(blob);
         const a=doc.createElement('a');
@@ -276,9 +278,56 @@
       }catch(e){}
     });
 
+    const exportRecordsButton=doc.createElement('button');
+    exportRecordsButton.id='agp_export_records';
+    exportRecordsButton.textContent='导出本地缓存库存记录';
+    exportRecordsButton.style.background='#fa8c16';
+    exportRecordsButton.style.color='#fff';
+    exportRecordsButton.style.border='none';
+    exportRecordsButton.style.padding='8px 12px';
+    exportRecordsButton.style.borderRadius='6px';
+    exportRecordsButton.style.cursor='pointer';
+    exportRecordsButton.addEventListener('click',function(){
+      try{
+        const recordKey='agp_product_records';
+        const raw=localStorage.getItem(recordKey)||'{}';
+        let recStore={};
+        try{recStore=JSON.parse(raw)||{};}catch(e){recStore={};}
+        const nowTs=Date.now();
+        const header=['sku','状态','库存','价格','记录时间','未变化天数'];
+        const rows=[header.join(',')];
+        for(const sku in recStore){
+          if(!Object.prototype.hasOwnProperty.call(recStore,sku)) continue;
+          const r=recStore[sku]||{};
+          const ts=typeof r.ts==='number'?r.ts:nowTs;
+          const days=Math.floor((nowTs-ts)/(24*60*60*1000));
+          const dt=new Date(ts).toLocaleString();
+          const status=(r.status!=null?r.status:'');
+          const stock=(r.stock!=null?String(r.stock):'');
+          const price=(r.price!=null?String(r.price):'');
+          const row=[sku,status,stock,price,dt,String(days)].map(function(v){
+            var s=String(v);
+            if(s.includes(',')||s.includes('"')){s='"'+s.replace(/"/g,'""')+'"';}
+            return s;
+          }).join(',');
+          rows.push(row);
+        }
+        const csv=rows.join('\n');
+        const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+        const url=URL.createObjectURL(blob);
+        const a=doc.createElement('a');
+        a.href=url;
+        a.download='agp_inventory_records_'+new Date().toISOString().slice(0,10)+'.csv';
+        doc.body.appendChild(a);
+        a.click();
+        setTimeout(function(){doc.body.removeChild(a);URL.revokeObjectURL(url);},0);
+      }catch(e){}
+    });
+
     container.appendChild(startButton);
     container.appendChild(exportButton);
-    return {container,startButton,exportButton};
+    container.appendChild(exportRecordsButton);
+    return {container,startButton,exportButton,exportRecordsButton};
   }
 
   function applySettingsToInputs(settingsGrid){
@@ -287,10 +336,12 @@
     const delta=typeof cfg.delta==='number'?String(cfg.delta):'-0.1';
     const minDelta=typeof cfg.minDelta==='number'?String(cfg.minDelta):'-0.5';
     const floorRatio=typeof cfg.floorRatio==='number'?String(cfg.floorRatio):'1.3';
+    const autoDays=typeof cfg.autoDays==='number'?String(cfg.autoDays):'3';
     settingsGrid.intervalInputField.input.value=interval;
     settingsGrid.priceDeltaInputField.input.value=delta;
     settingsGrid.minPriceDeltaInputField.input.value=minDelta;
     settingsGrid.floorRatioInputField.input.value=floorRatio;
+    settingsGrid.autoDaysInputField.input.value=autoDays;
   }
 
   function collectSettingsFromInputs(settingsGrid){
@@ -298,11 +349,13 @@
     const deltaValue=settingsGrid.priceDeltaInputField.input.value||'-0.1';
     const minDeltaValue=settingsGrid.minPriceDeltaInputField.input.value||'-0.5';
     const floorRatioValue=settingsGrid.floorRatioInputField.input.value||'1.3';
+    const autoDaysValue=settingsGrid.autoDaysInputField.input.value||'3';
     const intervalNumber=Math.max(1,Number(intervalValue));
     const deltaNumber=Number(deltaValue);
     const minDeltaNumber=Number(minDeltaValue);
     const floorRatioNumber=Number(floorRatioValue);
-    const cfg={interval:intervalNumber,delta:deltaNumber,minDelta:minDeltaNumber,floorRatio:floorRatioNumber};
+    const autoDaysNumber=Math.max(0,Number(autoDaysValue));
+    const cfg={interval:intervalNumber,delta:deltaNumber,minDelta:minDeltaNumber,floorRatio:floorRatioNumber,autoDays:autoDaysNumber};
     return cfg;
   }
 
@@ -315,6 +368,7 @@
     settingsGrid.priceDeltaInputField.input.addEventListener('change',onChange);
     settingsGrid.minPriceDeltaInputField.input.addEventListener('change',onChange);
     settingsGrid.floorRatioInputField.input.addEventListener('change',onChange);
+    settingsGrid.autoDaysInputField.input.addEventListener('change',onChange);
   }
 
   function setupToolButton(toolButton){
@@ -418,6 +472,27 @@
 
 
 
+  function parseInventoryCount(productElement){
+    const cells=productElement.querySelectorAll('div[class^="TableCell-module__cellLayout"]');
+    for(const cell of cells){
+      const rows=cell.querySelectorAll('div[class^="JanusSplitBox-module__row"]');
+      for(const row of rows){
+        const panels=Array.from(row.querySelectorAll('div[class^="JanusSplitBox-module__panel"]'));
+        if(panels.length===2){
+          const firstLabel=panels[0].querySelector('kat-label');
+          const emp=(firstLabel&&firstLabel.getAttribute('emphasis'))?firstLabel.getAttribute('emphasis').trim():'';
+          if(emp.includes('有货')){
+            const text=(panels[1].textContent||'').trim();
+            const m=text.match(/\d+/);
+            if(m){
+              return parseInt(m[0],10);
+            }
+          }
+        }
+      }
+    }
+    return null;
+  }
   function findProductStatus(productElement){
     const statusContainer=productElement.querySelector('div[class^="Status-module__container--"]');
     if(!statusContainer){
@@ -553,6 +628,8 @@
     return null;
   }
 
+
+
   async function scanCurrentPage(cfg){
     const products=Array.from(doc.querySelectorAll('div[data-sku]'));
     appendLog('本页发现产品数 '+String(products.length));
@@ -563,13 +640,79 @@
         continue;
       }
       const productStatus=findProductStatus(product);
+
+      
       
       const skuText=product.getAttribute('data-sku')||'';
       const nameText=findProductName(product);
+      const stock=parseInventoryCount(product);
+      appendLog('库存 '+(stock!=null?String(stock):'未知'));
       if(productStatus && productStatus!=='在售'){
         appendLog('状态 '+productStatus+' 非在售，跳过 SKU '+skuText);
         continue;
       }
+
+      const inputs=findPriceInputs(product);
+      if(inputs.length<2){
+        appendLog('未找到价格输入框，跳过 SKU '+skuText);
+        continue;
+      }
+      const priceInput=inputs[0];
+      const minPriceInput=inputs[1];
+      const originalPriceText = priceInput.value;
+      const originalMinText = minPriceInput.value;
+
+      //
+      try{
+        const recordKey='agp_product_records';
+        const rawRec=localStorage.getItem(recordKey)||'{}';
+        let recStore={};
+        try{recStore=JSON.parse(rawRec)||{};}catch(e){recStore={};}
+        const prev=recStore[skuText]||null;
+        const currStatus=productStatus||'';
+        const currStock=(typeof stock==='number')?stock:null;
+        const currPriceNum=Number(originalPriceText);
+        const nowTs=Date.now();
+        let changed=true;
+        if(prev&&typeof prev==='object'){
+          const sameStatus=(prev.status||'')===currStatus;
+          const sameStock=(prev.stock==null?currStock==null:prev.stock===currStock);
+          const samePrice=Number(prev.price||NaN)===currPriceNum;
+          changed=!(sameStatus&&sameStock&&samePrice);
+        }
+        if(changed){
+          recStore[skuText]={status:currStatus,stock:(currStock==null?null:Number(currStock)),price:currPriceNum,ts:nowTs};
+          localStorage.setItem(recordKey,JSON.stringify(recStore));
+        }
+        const autoDaysMs=Math.max(0,Number(cfg.autoDays||0))*24*60*60*1000;
+        if(autoDaysMs>0 && prev && typeof prev.ts==='number'){
+          const elapsed=nowTs-prev.ts;
+          const sameStatus=(prev.status||'')===currStatus;
+          const sameStock=(prev.stock==null?currStock==null:prev.stock===currStock);
+          const samePrice=Number(prev.price||NaN)===currPriceNum;
+          if(elapsed>=autoDaysMs && sameStatus && sameStock && samePrice && !changed){
+            const autoNewPrice=currPriceNum+Number(cfg.delta||0);
+            const totalFeeAuto=await parseTotalFee(product);
+            if(totalFeeAuto!=null){
+              const thresholdAuto=totalFeeAuto*cfg.floorRatio;
+              if(autoNewPrice<=thresholdAuto){
+                appendLog('超过'+String(cfg.autoDays)+'天无变化，但新价不满足总费用*'+String(cfg.floorRatio)+' 下限，跳过 SKU '+skuText);
+              }else{
+                appendLog('超过'+String(cfg.autoDays)+'天无变化，按当前价改价 '+String(currPriceNum.toFixed(2))+' -> '+String(autoNewPrice.toFixed(2))+' SKU '+skuText);
+                setInputValue(priceInput,autoNewPrice);
+                setInputValue(minPriceInput,autoNewPrice+cfg.minDelta);
+                editedCount++;
+                await wait(1000);
+                continue;
+              }
+            }else{
+              appendLog('超过'+String(cfg.autoDays)+'天无变化，但总费用解析失败，跳过 SKU '+skuText);
+              continue;
+            }
+          }
+        }
+      }catch(e){}
+
       // appendLog('开始检查 产品 SKU '+skuText+(nameText?(' 名称 '+nameText):''));
       const featuredOffer=product.querySelector('div[data-test-id="FeaturedOfferPrice"]');
       if(!featuredOffer){
@@ -588,11 +731,7 @@
       }
       // appendLog('计算出推荐报价： '+skuText+' '+String(recommendedTotal));
       const newPrice=recommendedTotal+cfg.delta;
-      const inputs=findPriceInputs(product);
-      if(inputs.length<2){
-        appendLog('未找到价格输入框，跳过 SKU '+skuText);
-        continue;
-      }
+    
 
       const totalFee=await parseTotalFee(product);
       let threshold=0;
@@ -608,10 +747,7 @@
       }
       // appendLog('允许改价，最低阈值 '+Number(totalFee).toFixed(2)+' * '+cfg.floorRatio+'='+Number(threshold).toFixed(2));
       
-      const priceInput=inputs[0];
-      const minPriceInput=inputs[1];
-      const originalPriceText = priceInput.value;
-      const originalMinText = minPriceInput.value;
+    
       const minPriceValue=newPrice+cfg.minDelta;
 
       if (Number(originalPriceText).toFixed(2) === Number(newPrice).toFixed(2)) {
