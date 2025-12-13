@@ -198,9 +198,9 @@
     }
 
     const intervalInputField=createInputField('检测间隔(分钟)','number','1','30','agp_interval');
-    const priceDeltaInputField=createInputField('改价幅度','number','0.01','-0.1','agp_delta');
+    const priceDeltaInputField=createInputField('改价幅度','number','0.01','-0.01','agp_delta');
     const minPriceDeltaInputField=createInputField('最低价幅度','number','0.01','-0.5','agp_min_delta');
-    const floorRatioInputField=createInputField('价格底线比例','number','0.01','1.3','agp_floor_ratio');
+    const floorRatioInputField=createInputField('价格底线比例','number','0.01','2','agp_floor_ratio');
 
     container.appendChild(intervalInputField.wrap);
     container.appendChild(priceDeltaInputField.wrap);
@@ -448,23 +448,52 @@
     return fullText.includes('您的标准商品价格加上运费高于相应价格');
   }
 
-  function parseTotalFee(productElement){
-    const feesCell=productElement.querySelector('div.estimated-fees-cell');
-    if(!feesCell){
-      return null;
-    }
-    const rows=feesCell.querySelectorAll('div[class^="JanusSplitBox-module__row--"]');
-    for(const row of rows){
-      const labels=row.querySelectorAll('kat-label[emphasis]');
-      if(labels.length>=2){
-        const first=(labels[0].getAttribute('emphasis')||'').trim();
-        const second=(labels[1].getAttribute('emphasis')||'').trim();
-        if(first==='总费用'){
-          const m=second.match(/[\d.,]+/);
-          if(m){
-            return parseFloat(m[0].replace(/,/g,''));
+  async function parseTotalFee(productElement){
+    const maxRetries=5;
+    const delayMs=2000;
+    for(let attempt=1; attempt<=maxRetries; attempt++){
+      const feesCell=productElement.querySelector('div.estimated-fees-cell');
+      if(!feesCell){
+        if(attempt<maxRetries){
+          appendLog('未找到总费用div，重试 '+String(attempt)+'/'+String(maxRetries));
+          await wait(delayMs);
+          continue;
+        }
+        appendLog('未找到总费用div，放弃');
+        return null;
+      }
+      const rows=feesCell.querySelectorAll('div[class^="JanusSplitBox-module__row--"]');
+      let finded=null;
+      for(const row of rows){
+        const labels=row.querySelectorAll('kat-label[emphasis]');
+        if(labels.length>=2){
+          const first=(labels[0].getAttribute('emphasis')||'').trim();
+          const second=(labels[1].getAttribute('emphasis')||'').trim();
+          if(first==='总费用'){
+            const m=second.match(/[\d.,]+/);
+            if(m){
+              return parseFloat(m[0].replace(/,/g,''));
+            }
+            finded=second;
           }
         }
+      }
+      if(finded){
+        if(attempt<maxRetries){
+          appendLog('找到总费用，但正则匹配失败：'+finded+'，重试 '+String(attempt)+'/'+String(maxRetries));
+          await wait(delayMs);
+          continue;
+        }
+        appendLog('找到总费用，但正则匹配失败：'+finded+'，放弃');
+        return null;
+      } else {
+        if(attempt<maxRetries){
+          appendLog('未找到总费用label，重试 '+String(attempt)+'/'+String(maxRetries));
+          await wait(delayMs);
+          continue;
+        }
+        appendLog('未找到总费用label，放弃');
+        return null;
       }
     }
     return null;
@@ -511,7 +540,7 @@
         continue;
       }
 
-      const totalFee=parseTotalFee(product);
+      const totalFee=await parseTotalFee(product);
       let threshold=0;
       if(totalFee!=null){
         threshold=totalFee*cfg.floorRatio;
