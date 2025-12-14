@@ -706,6 +706,19 @@
         if(changed){
           recStore[skuText]={status:currStatus,stock:(currStock==null?null:Number(currStock)),price:currPriceNum,ts:nowTs};
           localStorage.setItem(recordKey,JSON.stringify(recStore));
+          await addChangePriceRecord({
+            sku:skuText,
+            product_title:nameText||'',
+            original_price:Number(originalPriceText),
+            new_price:Number(originalPriceText),
+            total_cost:Number(0),
+            type:2,
+            sales_status:productStatus||'',
+            stock:(typeof stock==='number'?stock:0),
+            store_name:storeName||'',
+            operator_user_id:0,
+            operator_username:''
+          });
         }
         const autoDaysMs=Math.max(0,Number(cfg.autoDays||0))*24*60*60*1000;
         if(autoDaysMs>0 && prev && typeof prev.ts==='number'){
