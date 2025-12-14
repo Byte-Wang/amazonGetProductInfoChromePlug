@@ -485,6 +485,18 @@
 
 
 
+  function findStoreName(){
+    const navbar=doc.getElementById('navbar');
+    if(!navbar){
+      return '';
+    }
+    const span=navbar.querySelector('span.dropdown-account-switcher-header-label-global');
+    if(!span){
+      return '';
+    }
+    const txt=(span.textContent||'').trim();
+    return txt;
+  }
   function parseInventoryCount(productElement){
     const cells=productElement.querySelectorAll('div[class^="TableCell-module__cellLayout"]');
     for(const cell of cells){
@@ -653,8 +665,7 @@
         continue;
       }
       const productStatus=findProductStatus(product);
-
-      
+      const storeName=findStoreName();
       
       const skuText=product.getAttribute('data-sku')||'';
       const nameText=findProductName(product);
@@ -715,6 +726,19 @@
                 setInputValue(priceInput,autoNewPrice);
                 setInputValue(minPriceInput,autoNewPrice+cfg.minDelta);
                 editedCount++;
+                await addChangePriceRecord({
+                  sku:skuText,
+                  product_title:nameText||'',
+                  original_price:Number(currPriceNum),
+                  new_price:Number(autoNewPrice),
+                  total_cost:Number(totalFeeAuto||0),
+                  type:1,
+                  sales_status:productStatus||'',
+                  stock:(typeof currStock==='number'?currStock:0),
+                  store_name:storeName||'',
+                  operator_user_id:0,
+                  operator_username:''
+                });
                 await wait(1000);
                 continue;
               }
@@ -769,9 +793,23 @@
       }
 
       appendLog('SKU:['+skuText + ']符合条件，准备改价， 原价：'+originalPriceText+' -> 新价格 '+Number(newPrice).toFixed(2));
+      
       setInputValue(priceInput,newPrice);
       setInputValue(minPriceInput,minPriceValue);
       editedCount++;
+      await addChangePriceRecord({
+        sku:skuText,
+        product_title:nameText||'',
+        original_price:Number(originalPriceText),
+        new_price:Number(newPrice),
+        total_cost:Number(totalFee||0),
+        type:1,
+        sales_status:productStatus||'',
+        stock:(typeof stock==='number'?stock:0),
+        store_name:storeName||'',
+        operator_user_id:0,
+        operator_username:''
+      });
       await wait(1000);
     }
     if(editedCount>0){
@@ -781,6 +819,33 @@
       appendLog(saved?'已点击保存所有':'未找到保存按钮');
     }
     return products.length;
+  }
+
+  async function addChangePriceRecord(payload){
+    const userInfo=await new Promise(function(resolve){
+      chrome.storage.sync.get('userInfo',function(result){
+        resolve(result && result.userInfo);
+      });
+    });
+    if(!userInfo||!userInfo.token){
+      FXLog('[checkVersionIsAvalible] 没有token，未登录：');
+      alert('请先登录！');
+      return null;
+    }
+    payload.operator_user_id=userInfo.id;
+    payload.operator_username=userInfo.nickname;
+    const response=await new Promise(function(resolve){
+      chrome.runtime.sendMessage({
+        action:'makePOSTRequest',
+        url:'http://119.91.217.3:8087/index.php/admin/index/addPriceChangeRecord',
+        token:userInfo.token,
+        data:payload
+      },function(resp){
+        resolve(resp);
+      });
+    });
+    try{console.log('[changePrice] response:',response);}catch(e){}
+    return response;
   }
 
   async function goToNextPage(){
