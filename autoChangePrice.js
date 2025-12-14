@@ -373,27 +373,40 @@
 
   function setupToolButton(toolButton){
     toolButton.addEventListener('click',function(){
-      const modalOverlay=doc.getElementById('agp_modal');
-      if(modalOverlay){
-        modalOverlay.style.display='flex';
-        applySettingsToInputs(globalUi.settingsGrid);
-        try{
-          const raw=localStorage.getItem(logStorageKey)||'[]';
-          let entries=[];
-          try{entries=JSON.parse(raw)||[];}catch(e){entries=[];}
-          const logBox=globalUi.logBox;
-          if(logBox){
-            logBox.innerHTML='';
-            for(const x of entries){
-              const line=doc.createElement('div');
-              const d=new Date((x&&typeof x.ts==='number')?x.ts:Date.now());
-              line.textContent=d.toLocaleString()+' '+(x&&x.text?x.text:'');
-              logBox.appendChild(line);
-            }
-            logBox.scrollTop=logBox.scrollHeight;
+
+       chrome.storage.sync.get('userInfo', function(result) {
+          FXLog("[checkVersionIsAvalible] 获取用户信息：",result);
+          const userInfo = result.userInfo;
+          if (!userInfo || !userInfo.token) {
+              FXLog("[checkVersionIsAvalible] 没有token，未登录：");
+              alert("请先登录！");
+              return;
           }
-        }catch(e){}
-      }
+          
+          const modalOverlay=doc.getElementById('agp_modal');
+          if(modalOverlay){
+            modalOverlay.style.display='flex';
+            applySettingsToInputs(globalUi.settingsGrid);
+            try{
+              const raw=localStorage.getItem(logStorageKey)||'[]';
+              let entries=[];
+              try{entries=JSON.parse(raw)||[];}catch(e){entries=[];}
+              const logBox=globalUi.logBox;
+              if(logBox){
+                logBox.innerHTML='';
+                for(const x of entries){
+                  const line=doc.createElement('div');
+                  const d=new Date((x&&typeof x.ts==='number')?x.ts:Date.now());
+                  line.textContent=d.toLocaleString()+' '+(x&&x.text?x.text:'');
+                  logBox.appendChild(line);
+                }
+                logBox.scrollTop=logBox.scrollHeight;
+              }
+            }catch(e){}
+          }
+        });
+
+      
     });
   }
 
@@ -869,29 +882,42 @@
   }
 
   function setupStartStop(){
-    globalUi.actionBar.startButton.addEventListener('click',async function(){
-      if(runtimeState.running){
-        runtimeState.running=false;
-        globalUi.actionBar.startButton.textContent='开始改价';
-        appendLog('已停止');
+    globalUi.actionBar.startButton.addEventListener('click',function(){
+      chrome.storage.sync.get('userInfo', async function(result) {
+        FXLog("[checkVersionIsAvalible] 获取用户信息：",result);
+        const userInfo = result.userInfo;
+        if (!userInfo || !userInfo.token) {
+            FXLog("[checkVersionIsAvalible] 没有token，未登录：");
+            alert("请先登录！");
+            return;
+        }
+        await startStopClick();
+      });
+    });
+  }
+
+  async function startStopClick(){
+    if(runtimeState.running){
+      runtimeState.running=false;
+      globalUi.actionBar.startButton.textContent='开始改价';
+      appendLog('已停止');
+      return;
+    } else {
+      globalUi.actionBar.startButton.textContent='停止改价';
+      runtimeState.running=true;
+    }
+    await runOneCycle();
+    const currentSettings=loadSettings();
+    const delayMs=Math.max(1,Number(currentSettings.interval||30))*60000;
+    runtimeState.timer=setTimeout(async function loop(){
+      if(runtimeState.running == false){
         return;
-      } else {
-        globalUi.actionBar.startButton.textContent='停止改价';
-        runtimeState.running=true;
       }
       await runOneCycle();
-      const currentSettings=loadSettings();
-      const delayMs=Math.max(1,Number(currentSettings.interval||30))*60000;
-      runtimeState.timer=setTimeout(async function loop(){
-        if(runtimeState.running == false){
-          return;
-        }
-        await runOneCycle();
-        const latest=loadSettings();
-        const nextDelay=Math.max(1,Number(latest.interval||30))*60000;
-        runtimeState.timer=setTimeout(loop,nextDelay);
-      },delayMs);
-    });
+      const latest=loadSettings();
+      const nextDelay=Math.max(1,Number(latest.interval||30))*60000;
+      runtimeState.timer=setTimeout(loop,nextDelay);
+    },delayMs);
   }
 
   const globalUi={};
