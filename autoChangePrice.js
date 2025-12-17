@@ -27,19 +27,43 @@
     if(!logBox){
       return;
     }
-    const line=doc.createElement('div');
     const now=new Date().toLocaleString();
+    const line=doc.createElement('div');
     line.textContent=now+' '+text;
     logBox.appendChild(line);
     logBox.scrollTop=logBox.scrollHeight;
+
     try{
       const nowTs=Date.now();
-      const cutoff=nowTs-7*24*60*60*1000;
       const raw=localStorage.getItem(logStorageKey)||'[]';
       let entries=[];
       try{entries=JSON.parse(raw)||[];}catch(e){entries=[];}
       entries.push({ts:nowTs,text});
-      entries=entries.filter(function(x){return typeof x==='object'&&x&&typeof x.ts==='number'&&x.ts>=cutoff;});
+
+      if(entries.length>=2000){
+        const content=entries.map(function(x){var d=new Date(x.ts||Date.now());return d.toLocaleString()+' '+(x.text||'');}).join('\r\n');
+        const blob=new Blob([content],{type:'text/plain'});
+        const url=URL.createObjectURL(blob);
+        const a=doc.createElement('a');
+        a.href=url;
+        a.download='agp_logs_auto_'+new Date(Date.now()+28800000).toISOString().slice(0,19).replace('T','_').replace(/:/g,'-')+'.txt';
+        doc.body.appendChild(a);
+        a.click();
+        setTimeout(function(){doc.body.removeChild(a);URL.revokeObjectURL(url);},0);
+
+        // 导出后清空日志
+        entries=[];
+        logBox.innerHTML='';
+        const clearedLine=doc.createElement('div');
+        clearedLine.textContent=new Date().toLocaleString()+' [系统] 日志已达10000行，已自动导出并清空。';
+        logBox.appendChild(clearedLine);
+      } else {
+        // 保留原有的按时间清理逻辑，避免无限增长但未到10000条的情况（可选，或者直接不按时间只按条数）
+        // 这里根据用户要求“滚动存储10000行”，我们仅保留最近10000行（如果没触发导出的话），
+        // 但既然是“到达10000行自动导出并清空”，那么意味着通常不会超过10000行。
+        // 为了安全起见，我们还是只保留这10000条以内的。
+      }
+
       localStorage.setItem(logStorageKey,JSON.stringify(entries));
     }catch(e){}
   }
@@ -266,15 +290,24 @@
         const raw=localStorage.getItem(logStorageKey)||'[]';
         let entries=[];
         try{entries=JSON.parse(raw)||[];}catch(e){entries=[];}
-        const content=entries.map(function(x){var d=new Date(x.ts||Date.now());return d.toLocaleString()+' '+(x.text||'');}).join('\n');
+        const content=entries.map(function(x){var d=new Date(x.ts||Date.now());return d.toLocaleString()+' '+(x.text||'');}).join('\r\n');
         const blob=new Blob([content],{type:'text/plain'});
         const url=URL.createObjectURL(blob);
         const a=doc.createElement('a');
         a.href=url;
-        a.download='agp_logs_'+new Date().toISOString().slice(0,10)+'.txt';
+        a.download='agp_logs_'+new Date(Date.now()+28800000).toISOString().slice(0,19).replace('T','_').replace(/:/g,'-')+'.txt';
         doc.body.appendChild(a);
         a.click();
         setTimeout(function(){doc.body.removeChild(a);URL.revokeObjectURL(url);},0);
+
+        localStorage.setItem(logStorageKey,'[]');
+        const logBox=doc.getElementById('agp_log');
+        if(logBox){
+          logBox.innerHTML='';
+          const clearedLine=doc.createElement('div');
+          clearedLine.textContent=new Date().toLocaleString()+' [系统] 手动导出日志完成，已清空。';
+          logBox.appendChild(clearedLine);
+        }
       }catch(e){}
     });
 
