@@ -232,19 +232,45 @@
       return {wrap,input};
     }
 
+    function createTextarea(label,placeholder,id){
+      const wrap=doc.createElement('div');
+      wrap.style.gridColumn='1 / -1';
+      const title=doc.createElement('div');
+      title.textContent=label;
+      title.style.marginBottom='6px';
+      title.style.fontSize='12px';
+      title.style.color='#555';
+      const textarea=doc.createElement('textarea');
+      textarea.placeholder=placeholder;
+      textarea.id=id;
+      textarea.style.width='100%';
+      textarea.style.height='60px';
+      textarea.style.boxSizing='border-box';
+      textarea.style.padding='8px';
+      textarea.style.border='1px solid #ddd';
+      textarea.style.borderRadius='6px';
+      textarea.style.resize='vertical';
+      textarea.style.fontFamily='inherit';
+      wrap.appendChild(title);
+      wrap.appendChild(textarea);
+      return {wrap,textarea};
+    }
+
     const intervalInputField=createInputField('检测间隔(分钟)','number','1','30','agp_interval');
     const priceDeltaInputField=createInputField('改价幅度','number','0.01','-0.01','agp_delta');
     const minPriceDeltaInputField=createInputField('最低价幅度','number','0.01','-0.5','agp_min_delta');
     const floorRatioInputField=createInputField('价格底线比例','number','0.01','2','agp_floor_ratio');
     const autoDaysInputField=createInputField('x天库存无变化自动改价','number','1','3','agp_auto_days');
+    const skuWhitelistField=createTextarea('SKU白名单(逗号分隔)','sku1,sku2...','agp_sku_whitelist');
 
     container.appendChild(intervalInputField.wrap);
     container.appendChild(priceDeltaInputField.wrap);
     container.appendChild(minPriceDeltaInputField.wrap);
     container.appendChild(floorRatioInputField.wrap);
     container.appendChild(autoDaysInputField.wrap);
+    container.appendChild(skuWhitelistField.wrap);
 
-    return {container,intervalInputField,priceDeltaInputField,minPriceDeltaInputField,floorRatioInputField,autoDaysInputField};
+    return {container,intervalInputField,priceDeltaInputField,minPriceDeltaInputField,floorRatioInputField,autoDaysInputField,skuWhitelistField};
   }
 
   function createLogBox(){
@@ -370,11 +396,13 @@
     const minDelta=typeof cfg.minDelta==='number'?String(cfg.minDelta):'-0.5';
     const floorRatio=typeof cfg.floorRatio==='number'?String(cfg.floorRatio):'1.3';
     const autoDays=typeof cfg.autoDays==='number'?String(cfg.autoDays):'3';
+    const skuWhitelist=typeof cfg.skuWhitelist==='string'?cfg.skuWhitelist:'';
     settingsGrid.intervalInputField.input.value=interval;
     settingsGrid.priceDeltaInputField.input.value=delta;
     settingsGrid.minPriceDeltaInputField.input.value=minDelta;
     settingsGrid.floorRatioInputField.input.value=floorRatio;
     settingsGrid.autoDaysInputField.input.value=autoDays;
+    settingsGrid.skuWhitelistField.textarea.value=skuWhitelist;
   }
 
   function collectSettingsFromInputs(settingsGrid){
@@ -383,12 +411,20 @@
     const minDeltaValue=settingsGrid.minPriceDeltaInputField.input.value||'-0.5';
     const floorRatioValue=settingsGrid.floorRatioInputField.input.value||'1.3';
     const autoDaysValue=settingsGrid.autoDaysInputField.input.value||'3';
+    const skuWhitelistValue=settingsGrid.skuWhitelistField.textarea.value||'';
     const intervalNumber=Math.max(1,Number(intervalValue));
     const deltaNumber=Number(deltaValue);
     const minDeltaNumber=Number(minDeltaValue);
     const floorRatioNumber=Number(floorRatioValue);
     const autoDaysNumber=Math.max(0,Number(autoDaysValue));
-    const cfg={interval:intervalNumber,delta:deltaNumber,minDelta:minDeltaNumber,floorRatio:floorRatioNumber,autoDays:autoDaysNumber};
+    const cfg={
+      interval:intervalNumber,
+      delta:deltaNumber,
+      minDelta:minDeltaNumber,
+      floorRatio:floorRatioNumber,
+      autoDays:autoDaysNumber,
+      skuWhitelist:skuWhitelistValue
+    };
     return cfg;
   }
 
@@ -402,6 +438,7 @@
     settingsGrid.minPriceDeltaInputField.input.addEventListener('change',onChange);
     settingsGrid.floorRatioInputField.input.addEventListener('change',onChange);
     settingsGrid.autoDaysInputField.input.addEventListener('change',onChange);
+    settingsGrid.skuWhitelistField.textarea.addEventListener('change',onChange);
   }
 
   function setupToolButton(toolButton){
@@ -691,6 +728,10 @@
   async function scanCurrentPage(cfg){
     const products=Array.from(doc.querySelectorAll('div[data-sku]'));
     appendLog('本页发现产品数 '+String(products.length));
+    
+    const whitelistRaw=cfg.skuWhitelist||'';
+    const whitelist=new Set(whitelistRaw.split(/[,，\n]/).map(function(s){return s.trim();}).filter(function(s){return s;}));
+
     let editedCount=0;
     for(const product of products){
       if(runtimeState.running == false){
@@ -701,6 +742,13 @@
       const storeName=findStoreName();
       
       const skuText=product.getAttribute('data-sku')||'';
+
+      if(whitelist.has(skuText)){
+        appendLog('SKU '+skuText+' 在白名单中，跳过改价');
+        continue;
+      }
+
+      
       const nameText=findProductName(product);
       const stock=parseInventoryCount(product);
       if(productStatus && productStatus!=='在售'){
@@ -768,7 +816,7 @@
                 appendLog('超过'+String(cfg.autoDays)+'天无变化，但新价不满足总费用*'+String(cfg.floorRatio)+' 下限，跳过 SKU '+skuText);
               }else{
                 appendLog('超过'+String(cfg.autoDays)+'天无变化，按当前价改价 '+String(currPriceNum.toFixed(2))+' -> '+String(autoNewPrice.toFixed(2))+' SKU '+skuText);
-                appendLog('SKU:['+skuText + ']符合条件，准备改价， 原价：'+String(currPriceNum.toFixed(2))+' -> 新价格 '+String(autoNewPrice).toFixed(2));
+                appendLog('SKU:['+skuText + ']符合条件，准备改价， 原价：'+String(currPriceNum.toFixed(2))+' -> 新价格 '+String(autoNewPrice.toFixed(2)));
                 setInputValue(priceInput,autoNewPrice);
                 setInputValue(minPriceInput,autoNewPrice+cfg.minDelta);
                 editedCount++;
@@ -794,7 +842,10 @@
             }
           }
         }
-      }catch(e){}
+      }catch(e){
+        appendLog('改价过程中发生错误，跳过 SKU '+skuText+' 错误信息：'+e.message);
+        continue;
+      }
 
       // appendLog('开始检查 产品 SKU '+skuText+(nameText?(' 名称 '+nameText):''));
       const featuredOffer=product.querySelector('div[data-test-id="FeaturedOfferPrice"]');
