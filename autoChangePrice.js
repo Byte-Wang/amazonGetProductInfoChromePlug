@@ -823,7 +823,7 @@
             operator_user_id:0,
             operator_username:'',
             asin:asin||'',
-            regionName:regionName||'',
+            region_name:regionName||'',
           });
         }
         const autoDaysMs=Math.max(0,Number(cfg.autoDays||0))*24*60*60*1000;
@@ -858,7 +858,7 @@
                   operator_user_id:0,
                   operator_username:'',
                   asin:asin||'',
-                  regionName:regionName||'',
+                  region_name:regionName||'',
                 });
                 await wait(1000);
                 continue;
@@ -933,7 +933,7 @@
         operator_user_id:0,
         operator_username:'',
         asin:asin||'',
-        regionName:regionName||'',
+        region_name:regionName||'',
       });
       await wait(1000);
     }
