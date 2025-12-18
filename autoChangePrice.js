@@ -508,6 +508,20 @@
     return true;
   }
 
+  function parseASIN(productElement){
+    const rows=productElement.querySelectorAll('div[class^="JanusSplitBox-module__row--"]');
+    for(const row of rows){
+      const panels=Array.from(row.querySelectorAll('div[class^="JanusSplitBox-module__panel"]'));
+      if(panels.length===2){
+        const firstText=(panels[0].textContent||'').trim();
+        if(firstText.toUpperCase()==='ASIN'){
+          return (panels[1].textContent||'').trim();
+        }
+      }
+    }
+    return '';
+  }
+
   function parseRecommendedTotal(featuredOfferContainer){
     const spans=featuredOfferContainer.querySelectorAll('span');
     let targetSpan=null;
@@ -766,6 +780,8 @@
       const originalPriceText = priceInput.value;
       const originalMinText = minPriceInput.value;
 
+      const asin = parseAsin(product);
+
       //
       try{
         const recordKey='agp_product_records';
@@ -798,7 +814,8 @@
             stock:(typeof stock==='number'?stock:0),
             store_name:storeName||'',
             operator_user_id:0,
-            operator_username:''
+            operator_username:'',
+            asin:asin||'',
           });
         }
         const autoDaysMs=Math.max(0,Number(cfg.autoDays||0))*24*60*60*1000;
@@ -831,7 +848,8 @@
                   stock:(typeof currStock==='number'?currStock:0),
                   store_name:storeName||'',
                   operator_user_id:0,
-                  operator_username:''
+                  operator_username:'',
+                  asin:asin||''
                 });
                 await wait(1000);
                 continue;
@@ -905,7 +923,8 @@
         stock:(typeof stock==='number'?stock:0),
         store_name:storeName||'',
         operator_user_id:0,
-        operator_username:''
+        operator_username:'',
+        asin:asin||''
       });
       await wait(1000);
     }
