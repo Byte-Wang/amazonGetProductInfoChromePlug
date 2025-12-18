@@ -573,6 +573,19 @@
     const txt=(span.textContent||'').trim();
     return txt;
   }
+
+  function findRegionName(){
+    const navbar=doc.getElementById('navbar');
+    if(!navbar){
+      return '';
+    }
+    const span=navbar.querySelector('span.dropdown-account-switcher-header-label-regional');
+    if(!span){
+      return '';
+    }
+    const txt=(span.textContent||'').trim();
+    return txt;
+  }
   function parseInventoryCount(productElement){
     const cells=productElement.querySelectorAll('div[class^="TableCell-module__cellLayout"]');
     for(const cell of cells){
@@ -746,6 +759,7 @@
       }
       const productStatus=findProductStatus(product);
       const storeName=findStoreName();
+      const regionName=findRegionName();
       
       const skuText=product.getAttribute('data-sku')||'';
 
@@ -808,6 +822,7 @@
             operator_user_id:0,
             operator_username:'',
             asin:asin||'',
+            regionName:regionName||'',
           });
         }
         const autoDaysMs=Math.max(0,Number(cfg.autoDays||0))*24*60*60*1000;
@@ -841,7 +856,8 @@
                   store_name:storeName||'',
                   operator_user_id:0,
                   operator_username:'',
-                  asin:asin||''
+                  asin:asin||'',
+                  regionName:regionName||'',
                 });
                 await wait(1000);
                 continue;
@@ -915,7 +931,8 @@
         store_name:storeName||'',
         operator_user_id:0,
         operator_username:'',
-        asin:asin||''
+        asin:asin||'',
+        regionName:regionName||'',
       });
       await wait(1000);
     }
