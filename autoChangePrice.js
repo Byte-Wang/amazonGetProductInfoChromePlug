@@ -258,19 +258,17 @@
 
     const intervalInputField=createInputField('检测间隔(分钟)','number','1','30','agp_interval');
     const priceDeltaInputField=createInputField('改价幅度','number','0.01','-0.01','agp_delta');
-    const minPriceDeltaInputField=createInputField('最低价幅度','number','0.01','-0.5','agp_min_delta');
     const floorRatioInputField=createInputField('价格底线比例','number','0.01','2','agp_floor_ratio');
     const autoDaysInputField=createInputField('x天库存无变化自动改价','number','1','3','agp_auto_days');
     const skuWhitelistField=createTextarea('SKU白名单(逗号分隔)','sku1,sku2...','agp_sku_whitelist');
 
     container.appendChild(intervalInputField.wrap);
     container.appendChild(priceDeltaInputField.wrap);
-    container.appendChild(minPriceDeltaInputField.wrap);
     container.appendChild(floorRatioInputField.wrap);
     container.appendChild(autoDaysInputField.wrap);
     container.appendChild(skuWhitelistField.wrap);
 
-    return {container,intervalInputField,priceDeltaInputField,minPriceDeltaInputField,floorRatioInputField,autoDaysInputField,skuWhitelistField};
+    return {container,intervalInputField,priceDeltaInputField,floorRatioInputField,autoDaysInputField,skuWhitelistField};
   }
 
   function createLogBox(){
@@ -393,13 +391,11 @@
     const cfg=loadSettings();
     const interval=typeof cfg.interval==='number'?String(cfg.interval):'30';
     const delta=typeof cfg.delta==='number'?String(cfg.delta):'-0.1';
-    const minDelta=typeof cfg.minDelta==='number'?String(cfg.minDelta):'-0.5';
     const floorRatio=typeof cfg.floorRatio==='number'?String(cfg.floorRatio):'1.3';
     const autoDays=typeof cfg.autoDays==='number'?String(cfg.autoDays):'3';
     const skuWhitelist=typeof cfg.skuWhitelist==='string'?cfg.skuWhitelist:'';
     settingsGrid.intervalInputField.input.value=interval;
     settingsGrid.priceDeltaInputField.input.value=delta;
-    settingsGrid.minPriceDeltaInputField.input.value=minDelta;
     settingsGrid.floorRatioInputField.input.value=floorRatio;
     settingsGrid.autoDaysInputField.input.value=autoDays;
     settingsGrid.skuWhitelistField.textarea.value=skuWhitelist;
@@ -408,19 +404,16 @@
   function collectSettingsFromInputs(settingsGrid){
     const intervalValue=settingsGrid.intervalInputField.input.value||'30';
     const deltaValue=settingsGrid.priceDeltaInputField.input.value||'-0.1';
-    const minDeltaValue=settingsGrid.minPriceDeltaInputField.input.value||'-0.5';
     const floorRatioValue=settingsGrid.floorRatioInputField.input.value||'1.3';
     const autoDaysValue=settingsGrid.autoDaysInputField.input.value||'3';
     const skuWhitelistValue=settingsGrid.skuWhitelistField.textarea.value||'';
     const intervalNumber=Math.max(1,Number(intervalValue));
     const deltaNumber=Number(deltaValue);
-    const minDeltaNumber=Number(minDeltaValue);
     const floorRatioNumber=Number(floorRatioValue);
     const autoDaysNumber=Math.max(0,Number(autoDaysValue));
     const cfg={
       interval:intervalNumber,
       delta:deltaNumber,
-      minDelta:minDeltaNumber,
       floorRatio:floorRatioNumber,
       autoDays:autoDaysNumber,
       skuWhitelist:skuWhitelistValue
@@ -435,7 +428,6 @@
     }
     settingsGrid.intervalInputField.input.addEventListener('change',onChange);
     settingsGrid.priceDeltaInputField.input.addEventListener('change',onChange);
-    settingsGrid.minPriceDeltaInputField.input.addEventListener('change',onChange);
     settingsGrid.floorRatioInputField.input.addEventListener('change',onChange);
     settingsGrid.autoDaysInputField.input.addEventListener('change',onChange);
     settingsGrid.skuWhitelistField.textarea.addEventListener('change',onChange);
@@ -835,7 +827,7 @@
                 appendLog('超过'+String(cfg.autoDays)+'天无变化，按当前价改价 '+String(currPriceNum.toFixed(2))+' -> '+String(autoNewPrice.toFixed(2))+' SKU '+skuText);
                 appendLog('SKU:['+skuText + ']符合条件，准备改价， 原价：'+String(currPriceNum.toFixed(2))+' -> 新价格 '+String(autoNewPrice.toFixed(2)));
                 setInputValue(priceInput,autoNewPrice);
-                setInputValue(minPriceInput,autoNewPrice+cfg.minDelta);
+                setInputValue(minPriceInput,NaN);
                 editedCount++;
                 await addChangePriceRecord({
                   sku:skuText,
@@ -900,7 +892,6 @@
       // appendLog('允许改价，最低阈值 '+Number(totalFee).toFixed(2)+' * '+cfg.floorRatio+'='+Number(threshold).toFixed(2));
       
     
-      const minPriceValue=newPrice+cfg.minDelta;
 
       if (Number(originalPriceText).toFixed(2) === Number(newPrice).toFixed(2)) {
         appendLog('价格未改变，跳过 SKU '+skuText);
@@ -910,7 +901,7 @@
       appendLog('SKU:['+skuText + ']符合条件，准备改价， 原价：'+originalPriceText+' -> 新价格 '+Number(newPrice).toFixed(2));
       
       setInputValue(priceInput,newPrice);
-      setInputValue(minPriceInput,minPriceValue);
+      setInputValue(minPriceInput,NaN);
       editedCount++;
       await addChangePriceRecord({
         sku:skuText,
