@@ -259,6 +259,7 @@
     const intervalInputField=createInputField('检测间隔(分钟)','number','1','30','agp_interval');
     const priceDeltaInputField=createInputField('改价幅度','number','0.01','-0.01','agp_delta');
     const floorRatioInputField=createInputField('价格底线比例','number','0.01','2','agp_floor_ratio');
+    floorRatioInputField.input.min = '1.3';
     const autoDaysInputField=createInputField('x天库存无变化自动改价','number','1','3','agp_auto_days');
     const skuWhitelistField=createTextarea('SKU白名单(逗号分隔)','sku1,sku2...','agp_sku_whitelist');
 
@@ -409,7 +410,7 @@
     const skuWhitelistValue=settingsGrid.skuWhitelistField.textarea.value||'';
     const intervalNumber=Math.max(1,Number(intervalValue));
     const deltaNumber=Number(deltaValue);
-    const floorRatioNumber=Number(floorRatioValue);
+    const floorRatioNumber=Math.max(1.3, Number(floorRatioValue));
     const autoDaysNumber=Math.max(0,Number(autoDaysValue));
     const cfg={
       interval:intervalNumber,
@@ -1085,15 +1086,27 @@
     });
   }
 
+  function setInputsDisabled(disabled){
+    const grid = globalUi.settingsGrid;
+    if(!grid) return;
+    if(grid.intervalInputField && grid.intervalInputField.input) grid.intervalInputField.input.disabled = disabled;
+    if(grid.priceDeltaInputField && grid.priceDeltaInputField.input) grid.priceDeltaInputField.input.disabled = disabled;
+    if(grid.floorRatioInputField && grid.floorRatioInputField.input) grid.floorRatioInputField.input.disabled = disabled;
+    if(grid.autoDaysInputField && grid.autoDaysInputField.input) grid.autoDaysInputField.input.disabled = disabled;
+    if(grid.skuWhitelistField && grid.skuWhitelistField.textarea) grid.skuWhitelistField.textarea.disabled = disabled;
+  }
+
   async function startStopClick(){
     if(runtimeState.running){
       runtimeState.running=false;
       globalUi.actionBar.startButton.textContent='开始改价';
+      setInputsDisabled(false);
       appendLog('已停止');
       return;
     } else {
       globalUi.actionBar.startButton.textContent='停止改价';
       runtimeState.running=true;
+      setInputsDisabled(true);
     }
     await runOneCycle();
     const currentSettings=loadSettings();
