@@ -787,7 +787,7 @@
       const originalPriceText = priceInput.value;
       const originalMinText = minPriceInput.value;
 
-      const asin = parseAsin(product);
+      const asin = parseASIN(product);
 
       //
       try{
