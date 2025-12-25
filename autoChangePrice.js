@@ -761,17 +761,17 @@
       const productStatus=findProductStatus(product);
       const storeName=findStoreName();
       const regionName=findRegionName();
-      
+      const asin = parseASIN(product);
+      const nameText=findProductName(product);
+      const stock=parseInventoryCount(product);
       const skuText=product.getAttribute('data-sku')||'';
+
+      // appendLog('SKU:'+skuText+',ASIN:'+asin+',店铺:'+storeName+',区域:'+regionName+',状态:'+productStatus+',库存:'+stock);
 
       if(whitelist.has(skuText)){
         appendLog('SKU '+skuText+' 在白名单中，跳过改价');
         continue;
       }
-
-      
-      const nameText=findProductName(product);
-      const stock=parseInventoryCount(product);
       if(productStatus && productStatus!=='在售'){
         appendLog('状态 '+productStatus+' 非在售，跳过 SKU '+skuText);
         continue;
@@ -786,8 +786,6 @@
       const minPriceInput=inputs[1];
       const originalPriceText = priceInput.value;
       const originalMinText = minPriceInput.value;
-
-      const asin = parseASIN(product);
 
       //
       try{
@@ -843,7 +841,9 @@
                 appendLog('超过'+String(cfg.autoDays)+'天无变化，按当前价改价 '+String(currPriceNum.toFixed(2))+' -> '+String(autoNewPrice.toFixed(2))+' SKU '+skuText);
                 appendLog('SKU:['+skuText + ']符合条件，准备改价， 原价：'+String(currPriceNum.toFixed(2))+' -> 新价格 '+String(autoNewPrice.toFixed(2)));
                 setInputValue(priceInput,autoNewPrice);
-                setInputValue(minPriceInput,NaN);
+                if (originalMinText && Number(originalMinText) > 0){
+                  setInputValue(minPriceInput,autoNewPrice - 0.1);
+                }
                 editedCount++;
                 await addChangePriceRecord({
                   sku:skuText,
@@ -918,7 +918,9 @@
       appendLog('SKU:['+skuText + ']符合条件，准备改价， 原价：'+originalPriceText+' -> 新价格 '+Number(newPrice).toFixed(2));
       
       setInputValue(priceInput,newPrice);
-      setInputValue(minPriceInput,NaN);
+      if (originalMinText && Number(originalMinText) > 0){
+        setInputValue(minPriceInput,newPrice - 0.1);
+      }
       editedCount++;
       await addChangePriceRecord({
         sku:skuText,
