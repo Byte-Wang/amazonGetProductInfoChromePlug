@@ -41,12 +41,36 @@
         uiContainer.style.flexDirection = 'column';
         uiContainer.style.gap = '10px';
 
+        // 标题容器
+        const titleContainer = document.createElement('div');
+        titleContainer.style.display = 'flex';
+        titleContainer.style.justifyContent = 'space-between';
+        titleContainer.style.alignItems = 'center';
+        titleContainer.style.marginBottom = '5px';
+
         // 标题
         const title = document.createElement('div');
         title.textContent = '自动付款助手';
         title.style.fontWeight = 'bold';
-        title.style.marginBottom = '5px';
-        uiContainer.appendChild(title);
+        titleContainer.appendChild(title);
+
+        // 关闭按钮
+        const closeIcon = document.createElement('div');
+        closeIcon.textContent = '×';
+        closeIcon.style.fontSize = '20px';
+        closeIcon.style.cursor = 'pointer';
+        closeIcon.style.fontWeight = 'bold';
+        closeIcon.style.lineHeight = '1';
+        closeIcon.title = '关闭对话框';
+        closeIcon.onclick = function() {
+            if (uiContainer) {
+                uiContainer.remove();
+                uiContainer = null;
+            }
+        };
+        titleContainer.appendChild(closeIcon);
+
+        uiContainer.appendChild(titleContainer);
 
         // 日志显示框 (黑色背景)
         logContainer = document.createElement('div');
@@ -151,14 +175,7 @@
             countdownTimer = null;
         }
         isProcessRunning = false;
-        appendLog('用户点击停止，流程终止，对话框即将关闭...');
-        
-        // 稍微延迟关闭对话框，让用户看到提示
-        setTimeout(() => {
-            if (uiContainer) {
-                uiContainer.remove();
-            }
-        }, 500);
+        appendLog('用户点击停止，流程终止。');
     }
 
     // 开始倒计时
