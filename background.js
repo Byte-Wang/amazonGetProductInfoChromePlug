@@ -98,7 +98,26 @@ chrome.runtime.onMessage.addListener(
         } else {
           sendResponse({ ok: false, desc: 'missing href' });
         }
-      }
+      } else if (request.action === "closeCurrentTab") {
+        if (!chrome.tabs || !chrome.tabs.remove) {
+           // 在 content script 环境下无法执行，直接返回或忽略
+           return true; 
+        }
+         // 关闭发送消息的标签页
+         if (sender.tab && sender.tab.id) {
+           chrome.tabs.remove(sender.tab.id, () => {
+              // 如果需要处理错误，可以在这里检查 chrome.runtime.lastError
+              const err = chrome.runtime.lastError;
+              if (err) {
+                  sendResponse({ ok: false, desc: err.message });
+              } else {
+                  sendResponse({ ok: true });
+              }
+           });
+         } else {
+           sendResponse({ ok: false, desc: 'sender tab id not found' });
+         }
+       }
       return true;
     }
 );
