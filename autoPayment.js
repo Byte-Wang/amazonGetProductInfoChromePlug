@@ -182,12 +182,13 @@
     function startCountdown() {
         isProcessRunning = true;
         let seconds = 10;
+
         
         const pageDesc = currentPageType === 'details' ? '二级付款页' : '一级付款页';
         appendLog(`当前为${pageDesc}，对话框已弹出，准备开始倒计时...`);
-        appendLog(`${seconds}s后开始请求付款`);
+        appendLog(`${seconds}s后开始执行自动付款脚本，如需手动操作，请点击停止按钮`);
         
-        countdownTimer = setInterval(() => {
+        countdownTimer = setInterval(async () => {
             if (!isProcessRunning) {
                 clearInterval(countdownTimer);
                 return;
@@ -195,28 +196,41 @@
             
             seconds--;
             if (seconds > 0) {
-                appendLog(`${seconds}s后开始请求付款`);
+                appendLog(`${seconds}s`);
             } else {
                 clearInterval(countdownTimer);
                 countdownTimer = null;
-                executePayment();
+                await executePayment();
             }
         }, 1000);
     }
 
     // 提取二级页面信息
-    function extractPageInfo() {
+    async function extractPageInfo() {
         // 提取店铺名称
         // class="dropdown-account-switcher-header-label-global"
+        let storeName = '';
         const shopEl = document.querySelector('.dropdown-account-switcher-header-label-global');
         if (shopEl) {
             appendLog(`检测到店铺名称: ${shopEl.textContent.trim()}`);
+            storeName = shopEl.textContent.trim();
         } else {
             appendLog('未找到店铺名称元素');
         }
 
+        let regionName = '';
+        const regionEl=navbar.querySelector('span.dropdown-account-switcher-header-label-regional');
+        if(regionEl){
+            appendLog(`检测到区域名称: ${regionEl.textContent.trim()}`);
+            regionName = regionEl.textContent.trim();
+        } else {
+            appendLog('未找到区域名称元素');
+        }
+
         // 提取付款金额
         // class="settlement-amount-balance"
+        let amount = '';
+        let currency = '';
         const amountEl = document.querySelector('.settlement-amount-balance');
         if (amountEl) {
             const rawAmount = amountEl.textContent.trim();
@@ -225,22 +239,45 @@
             const match = rawAmount.match(/^([^\d\s]+)\s*([\d,.]+)$/);
             if (match) {
                 appendLog(`检测到付款金额: ${rawAmount} (币种: ${match[1]}, 数值: ${match[2]})`);
+                amount = match[2];
+                currency = match[1].trim();
             } else {
                 appendLog(`检测到付款金额(未识别格式): ${rawAmount}`);
             }
         } else {
             appendLog('未找到付款金额元素');
         }
+        
+        return {
+            "store_name": storeName,
+            "site_name": regionName,
+            "currency": currency,
+            "amount": amount
+        };
     }
 
     // 执行付款操作
-    function executePayment() {
+    async function executePayment() {
         if (!isProcessRunning) return;
 
+
+        const userInfo=await new Promise(function(resolve){
+            chrome.storage.sync.get('userInfo',function(result){
+                resolve(result && result.userInfo);
+            });
+        });
+
+        if (!userInfo || !userInfo.token) {
+            appendLog('未登录，跳过本次操作！');
+            finishProcess();
+            return;
+        }
+
+        let pageInfo = {};
         // 如果是二级页面，先提取信息
         if (currentPageType === 'details') {
             appendLog('开始提取二级页面信息...');
-            extractPageInfo();
+            pageInfo = await extractPageInfo();
         }
         
         appendLog('开始查找“请求付款”按钮...');
@@ -288,6 +325,22 @@
         appendLog('找到按钮，执行点击...');
         realBtn.click();
         appendLog('点击完成');
+
+        if (currentPageType === 'details') {
+            pageInfo.operator_user_id=userInfo.id;
+            pageInfo.operator_username=userInfo.nickname;
+            const response=await new Promise(function(resolve){
+                chrome.runtime.sendMessage({
+                    action:'makePOSTRequest',
+                    url:'http://119.91.217.3:8087/index.php/admin/index/addWithdrawRecord',
+                    token:userInfo.token,
+                    data:pageInfo
+                },function(resp){
+                    resolve(resp);
+                });
+            });
+            try{console.log('[changePrice] response:',response);}catch(e){}
+        }
         
         finishProcess();
     }
