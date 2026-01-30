@@ -262,14 +262,39 @@
     floorRatioInputField.input.min = '1.3';
     const autoDaysInputField=createInputField('x天库存无变化自动改价','number','1','3','agp_auto_days');
     const skuWhitelistField=createTextarea('SKU白名单(逗号分隔)','sku1,sku2...','agp_sku_whitelist');
+    
+    // 创建动态改价勾选框
+    const dynamicPricingField={
+      wrap: doc.createElement('div'),
+      input: doc.createElement('input')
+    };
+    const dynamicPricingTitle=doc.createElement('div');
+    dynamicPricingTitle.textContent='勾选采用动态改价，不勾选默认根据推荐报价改价';
+    dynamicPricingTitle.style.marginBottom='6px';
+    dynamicPricingTitle.style.fontSize='12px';
+    dynamicPricingTitle.style.color='#555';
+    dynamicPricingField.input.type='checkbox';
+    dynamicPricingField.input.id='agp_dynamic_pricing';
+    // 加载保存的状态，默认为不勾选
+    const savedSettings=localStorage.getItem(storageKey)||'{}';
+    let settings={};
+    try{
+      settings=JSON.parse(savedSettings)||{};
+    }catch(e){
+      settings={};
+    }
+    dynamicPricingField.input.checked=settings.dynamicPricing||false;
+    dynamicPricingField.wrap.appendChild(dynamicPricingTitle);
+    dynamicPricingField.wrap.appendChild(dynamicPricingField.input);
 
     container.appendChild(intervalInputField.wrap);
     container.appendChild(priceDeltaInputField.wrap);
     container.appendChild(floorRatioInputField.wrap);
     container.appendChild(autoDaysInputField.wrap);
     container.appendChild(skuWhitelistField.wrap);
+    container.appendChild(dynamicPricingField.wrap);
 
-    return {container,intervalInputField,priceDeltaInputField,floorRatioInputField,autoDaysInputField,skuWhitelistField};
+    return {container,intervalInputField,priceDeltaInputField,floorRatioInputField,autoDaysInputField,skuWhitelistField,dynamicPricingField};
   }
 
   function createLogBox(){
@@ -408,6 +433,7 @@
     const floorRatioValue=settingsGrid.floorRatioInputField.input.value||'1.3';
     const autoDaysValue=settingsGrid.autoDaysInputField.input.value||'3';
     const skuWhitelistValue=settingsGrid.skuWhitelistField.textarea.value||'';
+    const dynamicPricingValue=settingsGrid.dynamicPricingField.input.checked||false;
     const intervalNumber=Math.max(1,Number(intervalValue));
     const deltaNumber=Number(deltaValue);
     const floorRatioNumber=Math.max(1.3, Number(floorRatioValue));
@@ -417,21 +443,19 @@
       delta:deltaNumber,
       floorRatio:floorRatioNumber,
       autoDays:autoDaysNumber,
-      skuWhitelist:skuWhitelistValue
+      skuWhitelist:skuWhitelistValue,
+      dynamicPricing:dynamicPricingValue
     };
     return cfg;
   }
 
-  function setupSettingsAutoSave(settingsGrid){
-    function onChange(){
-      const cfg=collectSettingsFromInputs(settingsGrid);
-      saveSettings(cfg);
-    }
+  function setupSettingsAutoSave(settingsGrid){    function onChange(){      const cfg=collectSettingsFromInputs(settingsGrid);      saveSettings(cfg);    }
     settingsGrid.intervalInputField.input.addEventListener('change',onChange);
     settingsGrid.priceDeltaInputField.input.addEventListener('change',onChange);
     settingsGrid.floorRatioInputField.input.addEventListener('change',onChange);
     settingsGrid.autoDaysInputField.input.addEventListener('change',onChange);
     settingsGrid.skuWhitelistField.textarea.addEventListener('change',onChange);
+    settingsGrid.dynamicPricingField.input.addEventListener('change',onChange);
   }
 
   function setupToolButton(toolButton){
@@ -608,6 +632,63 @@
     }
     return null;
   }
+
+  function parseLast24hSales(productElement, skuText){
+    // 获取当前库存
+    const currentStock = parseInventoryCount(productElement);
+    if (currentStock === null) {
+      return 0;
+    }
+    
+    // 从本地存储中读取历史库存记录
+    const stockRecordKey = 'agp_stock_records';
+    const rawStockRec = localStorage.getItem(stockRecordKey) || '{}';
+    let stockStore = {};
+    try {
+      stockStore = JSON.parse(rawStockRec) || {};
+    } catch (e) {
+      stockStore = {};
+    }
+    
+    // 获取当前时间
+    const now = Date.now();
+    const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+    
+    // 获取该SKU的历史库存记录
+    const skuStockRecords = stockStore[skuText] || [];
+    
+    // 过滤出24小时内的库存记录
+    const recentStockRecords = skuStockRecords.filter(record => record.timestamp >= twentyFourHoursAgo);
+    
+    // 计算24小时销量
+    let sales = 0;
+    if (recentStockRecords.length > 0) {
+      // 按时间排序，最早的在前
+      recentStockRecords.sort((a, b) => a.timestamp - b.timestamp);
+      // 最早的库存减去当前库存就是销量
+      const earliestStock = recentStockRecords[0].stock;
+      sales = Math.max(0, earliestStock - currentStock);
+    }
+    
+    // 更新本地存储，添加当前库存记录
+    const newStockRecord = {
+      timestamp: now,
+      stock: currentStock
+    };
+    
+    // 保留最近7天的记录，最多50条
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const updatedStockRecords = [
+      ...skuStockRecords.filter(record => record.timestamp >= sevenDaysAgo),
+      newStockRecord
+    ].slice(-50); // 最多保留50条记录
+    
+    stockStore[skuText] = updatedStockRecords;
+    localStorage.setItem(stockRecordKey, JSON.stringify(stockStore));
+    
+    return sales;
+  }
+
   function findProductStatus(productElement){
     const statusContainer=productElement.querySelector('div[class^="Status-module__container--"]');
     if(!statusContainer){
@@ -743,9 +824,7 @@
     return null;
   }
 
-
-
-  async function scanCurrentPage(cfg){
+ async function scanCurrentPageOld(cfg){
     const products=Array.from(doc.querySelectorAll('div[data-sku]'));
     appendLog('本页发现产品数 '+String(products.length));
     
@@ -948,6 +1027,341 @@
     return products.length;
   }
 
+  async function scanCurrentPageNew(cfg){
+    appendLog('========== 开始扫描当前页面改价任务 ==========');
+    appendLog('配置信息：');
+    appendLog('  白名单SKU数量：'+cfg.skuWhitelist?(cfg.skuWhitelist.split(/[,，\n]/).filter(s=>s.trim()).length):0);
+    appendLog('  扫描间隔：'+cfg.interval+'毫秒');
+    
+    const products=Array.from(doc.querySelectorAll('div[data-sku]'));
+    appendLog('本页发现产品数 '+String(products.length));
+    
+    const whitelistRaw=cfg.skuWhitelist||'';
+    const whitelist=new Set(whitelistRaw.split(/[,，\n]/).map(function(s){return s.trim();}).filter(function(s){return s;}));
+    const recordKey='agp_product_records';
+    let editedCount=0;
+    let highRiskSKUs=[];
+    
+    for(const product of products){
+      if(runtimeState.running == false){
+        appendLog('已停止');
+        continue;
+      }
+      
+      appendLog('---------- 开始处理产品 ['+(editedCount+1)+'/'+products.length+'] ----------');
+      
+      const productStatus=findProductStatus(product);
+      const storeName=findStoreName();
+      const regionName=findRegionName();
+      const asin = parseASIN(product);
+      const nameText=findProductName(product);
+      const stock=parseInventoryCount(product);
+      const skuText=product.getAttribute('data-sku')||'';
+      
+      appendLog('SKU '+skuText+' 基本信息：');
+      appendLog('  产品名称：'+nameText);
+      appendLog('  ASIN：'+asin);
+      appendLog('  库存：'+stock);
+      appendLog('  状态：'+productStatus);
+      appendLog('  店铺：'+storeName);
+      appendLog('  地区：'+regionName);
+
+      if(whitelist.has(skuText)){
+        appendLog('SKU '+skuText+' 在白名单中，跳过改价');
+        continue;
+      }
+      if(productStatus && productStatus!=='在售'){
+        appendLog('SKU '+skuText+' 状态为 '+productStatus+'，非在售状态，跳过改价');
+        continue;
+      }
+
+      const inputs=findPriceInputs(product);
+      if(inputs.length<2){
+        appendLog('SKU '+skuText+' 未找到价格输入框，跳过改价');
+        continue;
+      }
+      const priceInput=inputs[0];
+      const minPriceInput=inputs[1];
+      const originalPriceText = priceInput.value;
+      const originalMinText = minPriceInput.value;
+      const currPriceNum=Number(originalPriceText);
+      
+      try{
+        // ───────────────────────────────────────
+        // 步骤1：获取实时数据
+        // ───────────────────────────────────────
+        const last24hSales=parseLast24hSales(product, skuText);
+        appendLog('SKU '+skuText+' 24h 销售数 '+String(last24hSales));
+        appendLog('SKU '+skuText+' 当前库存：'+parseInventoryCount(product));
+        const featuredOffer=product.querySelector('div[data-test-id="FeaturedOfferPrice"]');
+        let recommendedTotal=null;
+        if(featuredOffer){
+          recommendedTotal=parseRecommendedTotal(featuredOffer);
+        }
+        const totalFee=await parseTotalFee(product);
+        
+        appendLog('SKU '+skuText+' 实时数据：当前售价='+currPriceNum.toFixed(2)+'，24h销量='+last24hSales+'，推荐报价='+(recommendedTotal?recommendedTotal.toFixed(2):'无')+'，总费用='+(totalFee?totalFee.toFixed(2):'无'));
+        
+        // 【新增】异常保护：费用 ≥ 售价 → 极可能已亏损
+        if(totalFee!=null && totalFee >= currPriceNum){
+          appendLog('【警告】SKU '+skuText+'：总费用('+totalFee.toFixed(2)+') ≥ 售价('+currPriceNum.toFixed(2)+')，暂停调价！');
+          highRiskSKUs.push(skuText);
+          continue;
+        }
+        
+        const dynamicMinPrice=totalFee!=null?totalFee*1.30:currPriceNum*0.8; // 默认1.3倍费用或当前价格的80%
+        appendLog('SKU '+skuText+' 动态最低限价='+dynamicMinPrice.toFixed(2));
+        
+        // ───────────────────────────────────────
+        // 步骤2：读取本地状态（从持久化存储）
+        // ───────────────────────────────────────
+        const rawRec=localStorage.getItem(recordKey)||'{}';
+        let recStore={};
+        try{recStore=JSON.parse(rawRec)||{};}catch(e){recStore={};}
+        appendLog('SKU '+skuText+' 本地状态读取：成功加载存储记录，共包含 '+Object.keys(recStore).length+' 个SKU的状态');
+        const prev=recStore[skuText]||{};
+        appendLog('SKU '+skuText+' 历史状态：'+(prev?'已存在':'首次处理'));
+        
+        // 读取本地状态
+        let consecutiveNoSalesHours=Number(prev.consecutiveNoSalesHours)||0;
+        const lastPriceChangeTime=Number(prev.lastPriceChangeTime)||Date.now();
+        const priceChangeQueue=Array.isArray(prev.priceChangeQueue)?prev.priceChangeQueue:[];
+        
+        // ───────────────────────────────────────
+        // 步骤3：更新滞销计时器
+        // ───────────────────────────────────────
+        if(last24hSales===0){
+          // 计算从上次更新到现在经过的小时数
+          const now=Date.now();
+          const lastUpdateTime=Number(prev.ts)||now;
+          const hoursElapsed=(now-lastUpdateTime)/(3600*1000);
+          consecutiveNoSalesHours += hoursElapsed;
+          appendLog('SKU '+skuText+' 滞销计时更新：本次经过'+hoursElapsed.toFixed(1)+'小时，累计滞销'+consecutiveNoSalesHours.toFixed(1)+'小时');
+        }else{
+          consecutiveNoSalesHours=0;
+          appendLog('SKU '+skuText+' 有销量('+last24hSales+')，重置滞销计时');
+        }
+        
+        const hoursSinceLastChange=(Date.now()-lastPriceChangeTime)/(3600*1000);
+        
+        appendLog('SKU '+skuText+' 本地状态：连续滞销小时='+consecutiveNoSalesHours.toFixed(1)+'，距上次改价='+hoursSinceLastChange.toFixed(1)+'小时，调价队列='+JSON.stringify(priceChangeQueue));
+        
+        // ───────────────────────────────────────
+        // 步骤4：销售状态
+        // ───────────────────────────────────────
+        let salesStatus='滞销';
+        if(last24hSales>=3){
+          salesStatus='热销';
+        }else if(last24hSales>0){
+          salesStatus='一般';
+        }
+        appendLog('SKU '+skuText+' 销售状态：'+salesStatus+' (24h销量='+last24hSales+')');
+        
+        // ───────────────────────────────────────
+        // 步骤5：计算建议新价格
+        // ───────────────────────────────────────
+        let suggestedNewPrice=currPriceNum; // 默认不变
+        let priceChangeReason='价格保持不变';
+        
+        if(salesStatus!=='滞销'){
+          if(recommendedTotal && currPriceNum < recommendedTotal*1.10){
+            suggestedNewPrice=currPriceNum*1.03;
+            priceChangeReason='热销/一般状态，当前价低于推荐价110%，建议提价3%';
+          }else{
+            suggestedNewPrice=currPriceNum*1.01;
+            priceChangeReason='热销/一般状态，建议小幅提价1%';
+          }
+        }else if(salesStatus==='滞销' && consecutiveNoSalesHours < 24){
+          suggestedNewPrice=currPriceNum;
+          priceChangeReason='滞销初期(<24小时)，保持价格观望';
+        }else if(consecutiveNoSalesHours >= 24 && hoursSinceLastChange >= 6){
+          // 检查价格稳定期：若最近3次均为降价，则强制跳过本次调价
+          const priceStabilizationActive=(priceChangeQueue.length===3 && priceChangeQueue.every(direction=>direction==='down'));
+          appendLog('SKU '+skuText+' 价格稳定期检查：调价队列='+JSON.stringify(priceChangeQueue)+'，是否触发保护='+(priceStabilizationActive?'是':'否'));
+          
+          if(!priceStabilizationActive){
+            if(consecutiveNoSalesHours < 48){
+              suggestedNewPrice=currPriceNum*0.95;
+              priceChangeReason='滞销24-48小时，建议降价5%';
+            }else if(consecutiveNoSalesHours < 72){
+              suggestedNewPrice=currPriceNum*0.93;
+              priceChangeReason='滞销48-72小时，建议降价7%';
+            }else{
+              suggestedNewPrice=dynamicMinPrice;
+              priceChangeReason='滞销超过72小时，建议降至最低限价';
+            }
+          }else{
+            priceChangeReason='价格稳定期保护：最近3次均为降价，跳过本次调价';
+          }
+        }else if(consecutiveNoSalesHours >= 24 && hoursSinceLastChange < 6){
+          priceChangeReason='距上次改价不足6小时，跳过本次调价';
+        }
+        
+        appendLog('SKU '+skuText+' 价格计算：'+priceChangeReason+'，建议新价='+suggestedNewPrice.toFixed(2));
+        
+        // ───────────────────────────────────────
+        // 步骤6：强制应用价格底线
+        // ───────────────────────────────────────
+        const suggestedPriceBeforeFloor=suggestedNewPrice;
+        suggestedNewPrice=Math.max(suggestedNewPrice,dynamicMinPrice);
+        if(suggestedPriceBeforeFloor !== suggestedNewPrice){
+          appendLog('SKU '+skuText+' 价格底线保护：建议价('+suggestedPriceBeforeFloor.toFixed(2)+')低于最低限价('+dynamicMinPrice.toFixed(2)+')，已调整至最低限价');
+        }else{
+          appendLog('SKU '+skuText+' 价格底线检查：建议价('+suggestedPriceBeforeFloor.toFixed(2)+')符合最低限价要求，无需调整');
+        }
+        
+        // ───────────────────────────────────────
+        // 步骤7：决策是否执行调价
+        // ───────────────────────────────────────
+        let executePriceChange=false;
+        let priceChangeDirection='';
+        let skipReason='';
+        
+        if(suggestedNewPrice!==currPriceNum){
+          const priceChangeRatio=Math.abs(suggestedNewPrice-currPriceNum)/currPriceNum;
+          if(priceChangeRatio>=0.01){ // 价格变动比例≥1%
+            executePriceChange=true;
+            priceChangeDirection=suggestedNewPrice>currPriceNum?'up':'down';
+            appendLog('SKU '+skuText+' 调价决策：符合条件，执行调价 (变动比例='+(priceChangeRatio*100).toFixed(1)+'%)');
+          }else{
+            skipReason='价格变动比例不足1% ('+(priceChangeRatio*100).toFixed(2)+'%)';
+            appendLog('SKU '+skuText+' 调价决策：跳过，'+skipReason);
+          }
+        }else{
+          skipReason='建议价格与当前价格相同';
+          appendLog('SKU '+skuText+' 调价决策：跳过，'+skipReason);
+        }
+        
+        // ───────────────────────────────────────
+        // 步骤8：执行 & 更新状态
+        // ───────────────────────────────────────
+        if(executePriceChange){
+          // 应用新价格
+          setInputValue(priceInput,suggestedNewPrice);
+          appendLog('SKU '+skuText+' 已设置新价格到输入框：'+suggestedNewPrice.toFixed(2));
+          
+          if(originalMinText && Number(originalMinText) > 0){
+            setInputValue(minPriceInput,suggestedNewPrice - 0.1);
+            appendLog('SKU '+skuText+' 已设置最低限价：'+(suggestedNewPrice - 0.1).toFixed(2));
+          }else{
+            appendLog('SKU '+skuText+' 未设置最低限价（原最低限价为空或0）');
+          }
+          
+          // 更新本地状态
+          const updatedPriceChangeQueue=[...priceChangeQueue,priceChangeDirection];
+          if(updatedPriceChangeQueue.length>3){
+            updatedPriceChangeQueue.shift(); // 保持最多3条记录
+          }
+          
+          recStore[skuText]={
+            ...prev,
+            status:productStatus,
+            stock:stock,
+            price:suggestedNewPrice,
+            ts:Date.now(),
+            consecutiveNoSalesHours:consecutiveNoSalesHours,
+            lastPriceChangeTime:Date.now(),
+            priceChangeQueue:updatedPriceChangeQueue
+          };
+          
+          // 记录改价信息
+          appendLog('SKU ['+skuText+'] 符合条件，准备改价');
+          appendLog('  原价：'+currPriceNum.toFixed(2)+' -> 新价格：'+suggestedNewPrice.toFixed(2));
+          appendLog('  销售状态：'+salesStatus+'，过去24小时销量：'+last24hSales+'，连续滞销小时：'+consecutiveNoSalesHours.toFixed(1));
+          appendLog('  调价队列更新：'+JSON.stringify(updatedPriceChangeQueue));
+          
+          appendLog('SKU '+skuText+' 开始上传改价记录到服务器...');
+          await addChangePriceRecord({
+            sku:skuText,
+            product_title:nameText||'',
+            original_price:currPriceNum,
+            new_price:suggestedNewPrice,
+            total_cost:Number(totalFee||0),
+            type:1,
+            sales_status:salesStatus,
+            stock:typeof stock==='number'?stock:0,
+            store_name:storeName||'',
+            operator_user_id:0,
+            operator_username:'',
+            asin:asin||'',
+            region_name:regionName||'',
+          });
+          appendLog('SKU '+skuText+' 改价记录上传完成');
+          
+          editedCount++;
+          appendLog('SKU '+skuText+' 改价完成，等待1秒后继续下一个SKU');
+          await wait(1000);
+        }else{
+          // 更新滞销计时器（无论是否调价）
+          recStore[skuText]={
+            ...prev,
+            status:productStatus,
+            stock:stock,
+            price:currPriceNum,
+            ts:Date.now(),
+            consecutiveNoSalesHours:consecutiveNoSalesHours
+          };
+          appendLog('SKU '+skuText+' 未执行改价，原因：'+skipReason);
+          appendLog('SKU '+skuText+' 已更新本地状态（滞销计时器等）');
+        }
+        
+        // 更新lastUpdateTime用于计算滞销小时数
+        recStore[skuText].lastUpdateTime=Date.now();
+        
+        // 保存更新后的本地状态
+        appendLog('SKU '+skuText+' 准备保存本地状态：');
+        appendLog('  状态更新项：状态='+productStatus+', 库存='+stock+', 价格='+recStore[skuText].price.toFixed(2)+', 滞销小时='+consecutiveNoSalesHours.toFixed(1));
+        appendLog('  时间戳：'+new Date(Date.now()).toLocaleString());
+        localStorage.setItem(recordKey,JSON.stringify(recStore));
+        appendLog('SKU '+skuText+' 本地状态已保存（包含lastUpdateTime）');
+        
+        appendLog('---------- 产品处理完成 ----------');
+        
+      }catch(e){
+        appendLog('【错误】SKU '+skuText+' 改价过程中发生异常：');
+        appendLog('  错误类型：'+e.name);
+        appendLog('  错误信息：'+e.message);
+        appendLog('  错误堆栈：'+e.stack);
+        appendLog('  已跳过该SKU，继续处理下一个产品');
+        continue;
+      }
+    }
+    
+    // ───────────────────────────────────────
+    // 步骤9：异常 SKU 汇总上报（供前端展示）
+    // ───────────────────────────────────────
+    if(highRiskSKUs.length>0){
+      localStorage.setItem('agp_high_risk_skus',JSON.stringify(highRiskSKUs));
+      appendLog('发现 '+highRiskSKUs.length+' 个高风险SKU，请检查！');
+      highRiskSKUs.forEach((sku,index)=>{
+        appendLog('  高风险SKU '+(index+1)+'：'+sku.sku+' (风险：'+sku.riskType+')');
+      });
+    }else{
+      localStorage.removeItem('agp_high_risk_skus');
+      appendLog('未发现高风险SKU');
+    }
+    
+    // ───────────────────────────────────────
+    // 步骤10：保存改价结果
+    // ───────────────────────────────────────
+    appendLog('========== 改价任务汇总 ==========');
+    appendLog('处理产品总数：'+products.length);
+    appendLog('执行改价数量：'+editedCount);
+    appendLog('跳过改价数量：'+(products.length-editedCount));
+    appendLog('===================================');
+    
+    if(editedCount>0){
+      appendLog('准备保存 '+editedCount+' 个SKU的改价结果');
+      await wait(2000);
+      const saved=await clickSaveAll();
+      appendLog(saved?'已点击保存所有按钮，改价结果已提交':'未找到保存按钮，请手动保存');
+    }else{
+      appendLog('本次扫描无需改价，跳过保存操作');
+    }
+    
+    return products.length;
+  }
+
   async function addChangePriceRecord(payload){
     const userInfo=await new Promise(function(resolve){
       chrome.storage.sync.get('userInfo',function(result){
@@ -957,10 +1371,12 @@
     if(!userInfo||!userInfo.token){
       FXLog('[checkVersionIsAvalible] 没有token，未登录：');
       alert('请先登录！');
+      appendLog('【错误】未登录，无法上传改价记录到服务器');
       return null;
     }
     payload.operator_user_id=userInfo.id;
     payload.operator_username=userInfo.nickname;
+    appendLog('准备发送改价记录请求：SKU='+payload.sku+'，原价='+payload.original_price.toFixed(2)+'，新价='+payload.new_price.toFixed(2));
     const response=await new Promise(function(resolve){
       chrome.runtime.sendMessage({
         action:'makePOSTRequest',
@@ -972,6 +1388,7 @@
       });
     });
     try{console.log('[changePrice] response:',response);}catch(e){}
+    appendLog('改价记录请求已发送，响应状态：'+(response?'成功':'失败'));
     return response;
   }
 
@@ -1053,7 +1470,9 @@
           appendLog('已停止');
           break;
         }
-        const count=await scanCurrentPage(cfg);
+        appendLog('改价模式：'+(cfg.dynamicPricing ? '动态改价' : '推荐报价改价'));
+        // 根据动态改价设置选择调用的方法
+        const count=cfg.dynamicPricing ? await scanCurrentPageNew(cfg) : await scanCurrentPageOld(cfg);
         appendLog('滚动至页面底部，尝试加载更多产品');
         scrollPageToBottom();
         await wait(300);
