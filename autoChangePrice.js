@@ -269,12 +269,19 @@
       input: doc.createElement('input')
     };
     const dynamicPricingTitle=doc.createElement('div');
-    dynamicPricingTitle.textContent='勾选采用动态改价，不勾选默认根据推荐报价改价';
-    dynamicPricingTitle.style.marginBottom='6px';
+    dynamicPricingTitle.textContent='勾选采用动态改价；不勾选根据推荐报价改价';
     dynamicPricingTitle.style.fontSize='12px';
     dynamicPricingTitle.style.color='#555';
+    dynamicPricingTitle.style.marginLeft='8px';
+    dynamicPricingTitle.style.lineHeight='20px';
     dynamicPricingField.input.type='checkbox';
     dynamicPricingField.input.id='agp_dynamic_pricing';
+    dynamicPricingField.input.style.margin='0';
+    dynamicPricingField.input.style.verticalAlign='middle';
+    // 设置容器为flex布局，实现左右排列
+    dynamicPricingField.wrap.style.display='flex';
+    dynamicPricingField.wrap.style.alignItems='center';
+    dynamicPricingField.wrap.style.marginBottom='6px';
     // 加载保存的状态，默认为不勾选
     const savedSettings=localStorage.getItem(storageKey)||'{}';
     let settings={};
@@ -284,8 +291,8 @@
       settings={};
     }
     dynamicPricingField.input.checked=settings.dynamicPricing||false;
-    dynamicPricingField.wrap.appendChild(dynamicPricingTitle);
     dynamicPricingField.wrap.appendChild(dynamicPricingField.input);
+    dynamicPricingField.wrap.appendChild(dynamicPricingTitle);
 
     container.appendChild(intervalInputField.wrap);
     container.appendChild(priceDeltaInputField.wrap);
@@ -824,6 +831,81 @@
     return null;
   }
 
+  async function saveProductInfoToCloud(product){
+    const productStatus=findProductStatus(product);
+    const storeName=findStoreName();
+    const regionName=findRegionName();
+    const asin = parseASIN(product);
+    const nameText=findProductName(product);
+    const stock=parseInventoryCount(product);
+    const skuText=product.getAttribute('data-sku')||'';
+    const totalFee=await parseTotalFee(product);
+
+    const inputs=findPriceInputs(product);
+    let originalPriceText = 0;
+    if(inputs.length > 0){
+      const priceInput=inputs[0];
+      originalPriceText = priceInput.value;
+    }
+    
+    const recordKey='agp_product_records';
+    const rawRec=localStorage.getItem(recordKey)||'{}';
+    let recStore={};
+    try{recStore=JSON.parse(rawRec)||{};}catch(e){recStore={};}
+    const prev=recStore[skuText]||null;
+    const currStatus=productStatus||'';
+    const currStock=(typeof stock==='number')?stock:null;
+    const currPriceNum=Number(originalPriceText);
+    const nowTs=Date.now();
+    const currTotalFee=totalFee!=null?Number(totalFee):0;
+    let changed=true;
+    if(prev&&typeof prev==='object'){
+      const sameStatus=(prev.status||'')===currStatus;
+      const sameStock=(prev.stock==null?currStock==null:prev.stock===currStock);
+      const samePrice=Number(prev.price||NaN)===currPriceNum;
+      const sameTotalFee=Number(prev.total_fee||NaN)===currTotalFee;
+      changed=!(sameStatus&&sameStock&&samePrice&&sameTotalFee);
+
+      if (changed) {
+        if (!sameStatus) {
+          appendLog('SKU：'+skuText+' 状态改变，从 '+prev.status+' 到 '+currStatus);
+        }
+        if (!sameStock) {
+          appendLog('SKU：'+skuText+' 库存改变，从 '+prev.stock+' 到 '+currStock);
+        }
+        if (!samePrice) {
+          appendLog('SKU：'+skuText+' 价格改变，从 '+prev.price+' 到 '+originalPriceText);
+        }
+        if (!sameTotalFee) {
+          appendLog('SKU：'+skuText+' 总费用改变，从 '+prev.total_fee+' 到 '+totalFee);
+        }
+      }
+    }
+    if(changed){
+      recStore[skuText]={
+        status:currStatus,
+        stock:(currStock==null?null:Number(currStock)),
+        price:currPriceNum,
+        total_fee:currTotalFee,
+        ts:nowTs};
+      localStorage.setItem(recordKey,JSON.stringify(recStore));
+      await addChangePriceRecord({
+        sku:skuText,
+        product_title:nameText||'',
+        original_price:Number(originalPriceText),
+        new_price:Number(originalPriceText),
+        total_cost:Number(totalFee||0),
+        type:2,
+        sales_status:productStatus||'',
+        stock:(typeof stock==='number'?stock:0),
+        store_name:storeName||'',
+        operator_user_id:0,
+        operator_username:'',
+        asin:asin||'',
+        region_name:regionName||'',
+      });
+    }
+  }
  async function scanCurrentPageOld(cfg){
     const products=Array.from(doc.querySelectorAll('div[data-sku]'));
     appendLog('本页发现产品数 '+String(products.length));
@@ -844,27 +926,24 @@
       const nameText=findProductName(product);
       const stock=parseInventoryCount(product);
       const skuText=product.getAttribute('data-sku')||'';
+      const totalFee=await parseTotalFee(product);
 
       // appendLog('SKU:'+skuText+',ASIN:'+asin+',店铺:'+storeName+',区域:'+regionName+',状态:'+productStatus+',库存:'+stock);
 
-      if(whitelist.has(skuText)){
-        appendLog('SKU '+skuText+' 在白名单中，跳过改价');
-        continue;
-      }
-      if(productStatus && productStatus!=='在售'){
-        appendLog('状态 '+productStatus+' 非在售，跳过 SKU '+skuText);
-        continue;
-      }
-
       const inputs=findPriceInputs(product);
-      if(inputs.length<2){
-        appendLog('未找到价格输入框，跳过 SKU '+skuText);
-        continue;
+      
+      let originalPriceText = 0;
+      let originalMinText = 0;
+      let priceInput;
+      let minPriceInput;
+      if(inputs.length > 0){
+        priceInput=inputs[0];
+        originalPriceText = priceInput.value;
       }
-      const priceInput=inputs[0];
-      const minPriceInput=inputs[1];
-      const originalPriceText = priceInput.value;
-      const originalMinText = minPriceInput.value;
+      if(inputs.length > 1){
+        minPriceInput=inputs[1];
+        originalMinText = minPriceInput.value;
+      }
 
       //
       try{
@@ -877,32 +956,31 @@
         const currStock=(typeof stock==='number')?stock:null;
         const currPriceNum=Number(originalPriceText);
         const nowTs=Date.now();
+        const currTotalFee=totalFee!=null?Number(totalFee):0;
         let changed=true;
         if(prev&&typeof prev==='object'){
           const sameStatus=(prev.status||'')===currStatus;
           const sameStock=(prev.stock==null?currStock==null:prev.stock===currStock);
           const samePrice=Number(prev.price||NaN)===currPriceNum;
-          changed=!(sameStatus&&sameStock&&samePrice);
+          const sameTotalFee=Number(prev.total_fee||NaN)===currTotalFee;
+          changed=!(sameStatus&&sameStock&&samePrice&&sameTotalFee);
         }
-        if(changed){
-          recStore[skuText]={status:currStatus,stock:(currStock==null?null:Number(currStock)),price:currPriceNum,ts:nowTs};
-          localStorage.setItem(recordKey,JSON.stringify(recStore));
-          await addChangePriceRecord({
-            sku:skuText,
-            product_title:nameText||'',
-            original_price:Number(originalPriceText),
-            new_price:Number(originalPriceText),
-            total_cost:Number(0),
-            type:2,
-            sales_status:productStatus||'',
-            stock:(typeof stock==='number'?stock:0),
-            store_name:storeName||'',
-            operator_user_id:0,
-            operator_username:'',
-            asin:asin||'',
-            region_name:regionName||'',
-          });
+        await saveProductInfoToCloud(product);
+
+        if(whitelist.has(skuText)){
+          appendLog('SKU '+skuText+' 在白名单中，跳过改价');
+          continue;
         }
+        if(productStatus && productStatus!=='在售'){
+          appendLog('状态 '+productStatus+' 非在售，跳过 SKU '+skuText);
+          continue;
+        }
+
+        if(inputs.length<2){
+          appendLog('未找到价格输入框，跳过 SKU '+skuText);
+          continue;
+        }
+
         const autoDaysMs=Math.max(0,Number(cfg.autoDays||0))*24*60*60*1000;
         if(autoDaysMs>0 && prev && typeof prev.ts==='number'){
           const elapsed=nowTs-prev.ts;
@@ -911,9 +989,9 @@
           const samePrice=Number(prev.price||NaN)===currPriceNum;
           if(elapsed>=autoDaysMs && sameStatus && sameStock && samePrice && !changed){
             const autoNewPrice=currPriceNum+Number(cfg.delta||0);
-            const totalFeeAuto=await parseTotalFee(product);
-            if(totalFeeAuto!=null){
-              const thresholdAuto=totalFeeAuto*cfg.floorRatio;
+            
+            if(totalFee!=null){
+              const thresholdAuto=totalFee*cfg.floorRatio;
               if(autoNewPrice<=thresholdAuto){
                 appendLog('超过'+String(cfg.autoDays)+'天无变化，但新价不满足总费用*'+String(cfg.floorRatio)+' 下限，跳过 SKU '+skuText);
               }else{
@@ -929,7 +1007,7 @@
                   product_title:nameText||'',
                   original_price:Number(currPriceNum),
                   new_price:Number(autoNewPrice),
-                  total_cost:Number(totalFeeAuto||0),
+                  total_cost:Number(totalFee||0),
                   type:1,
                   sales_status:productStatus||'',
                   stock:(typeof currStock==='number'?currStock:0),
@@ -973,7 +1051,6 @@
       const newPrice=recommendedTotal+cfg.delta;
     
 
-      const totalFee=await parseTotalFee(product);
       let threshold=0;
       if(totalFee!=null){
         threshold=totalFee*cfg.floorRatio;
@@ -1038,7 +1115,7 @@
     
     const whitelistRaw=cfg.skuWhitelist||'';
     const whitelist=new Set(whitelistRaw.split(/[,，\n]/).map(function(s){return s.trim();}).filter(function(s){return s;}));
-    const recordKey='agp_product_records';
+    
     let editedCount=0;
     let highRiskSKUs=[];
     
@@ -1047,9 +1124,9 @@
         appendLog('已停止');
         continue;
       }
+
       
-      appendLog('---------- 开始处理产品 ['+(editedCount+1)+'/'+products.length+'] ----------');
-      
+
       const productStatus=findProductStatus(product);
       const storeName=findStoreName();
       const regionName=findRegionName();
@@ -1057,6 +1134,11 @@
       const nameText=findProductName(product);
       const stock=parseInventoryCount(product);
       const skuText=product.getAttribute('data-sku')||'';
+      const totalFee=await parseTotalFee(product);
+
+      appendLog('---------- 开始处理产品(sku:'+skuText+') ['+(editedCount+1)+'/'+products.length+'] ----------');
+      
+      await saveProductInfoToCloud(product);
       
       appendLog('SKU '+skuText+' 基本信息：');
       appendLog('  产品名称：'+nameText);
@@ -1098,7 +1180,6 @@
         if(featuredOffer){
           recommendedTotal=parseRecommendedTotal(featuredOffer);
         }
-        const totalFee=await parseTotalFee(product);
         
         appendLog('SKU '+skuText+' 实时数据：当前售价='+currPriceNum.toFixed(2)+'，24h销量='+last24hSales+'，推荐报价='+(recommendedTotal?recommendedTotal.toFixed(2):'无')+'，总费用='+(totalFee?totalFee.toFixed(2):'无'));
         
@@ -1115,6 +1196,7 @@
         // ───────────────────────────────────────
         // 步骤2：读取本地状态（从持久化存储）
         // ───────────────────────────────────────
+        const recordKey='agp_product_records_auto';
         const rawRec=localStorage.getItem(recordKey)||'{}';
         let recStore={};
         try{recStore=JSON.parse(rawRec)||{};}catch(e){recStore={};}
@@ -1376,7 +1458,12 @@
     }
     payload.operator_user_id=userInfo.id;
     payload.operator_username=userInfo.nickname;
-    appendLog('准备发送改价记录请求：SKU='+payload.sku+'，原价='+payload.original_price.toFixed(2)+'，新价='+payload.new_price.toFixed(2));
+    if (payload.type == 1) {
+      appendLog('保存改价记录到云端：SKU='+payload.sku+'，原价='+payload.original_price.toFixed(2)+'，新价='+payload.new_price.toFixed(2));
+    } else {
+      appendLog('更新产品库存等信息到云端：SKU='+payload.sku+'，库存='+payload.stock+'，价格='+payload.original_price.toFixed(2)+'，总费用='+payload.total_cost.toFixed(2)+'，状态='+payload.sales_status);
+    }
+    
     const response=await new Promise(function(resolve){
       chrome.runtime.sendMessage({
         action:'makePOSTRequest',
@@ -1388,7 +1475,7 @@
       });
     });
     try{console.log('[changePrice] response:',response);}catch(e){}
-    appendLog('改价记录请求已发送，响应状态：'+(response?'成功':'失败'));
+    appendLog('请求已发送，响应状态：'+(response?'成功':'失败'));
     return response;
   }
 
