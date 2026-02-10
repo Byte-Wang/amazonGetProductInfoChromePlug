@@ -1629,36 +1629,56 @@
     if(runtimeState.running){
       runtimeState.running=false;
       globalUi.actionBar.startButton.textContent='开始改价';
+      localStorage.setItem("feixunAutoChangePriceIsRunning",0);
       setInputsDisabled(false);
       appendLog('已停止');
       return;
     } else {
       globalUi.actionBar.startButton.textContent='停止改价';
+      localStorage.setItem("feixunAutoChangePriceIsRunning",1);
       runtimeState.running=true;
       setInputsDisabled(true);
     }
     await runOneCycle();
     const currentSettings=loadSettings();
     const delayMs=Math.max(1,Number(currentSettings.interval||30))*60000;
-    runtimeState.timer=setTimeout(async function loop(){
+    appendLog(String(delayMs/1000)+'秒后开始下一轮');
+    setTimeout(function(){
       if(runtimeState.running == false){
+        appendLog('已停止');
         return;
       }
-      await runOneCycle();
-      const latest=loadSettings();
-      const nextDelay=Math.max(1,Number(latest.interval||30))*60000;
-      runtimeState.timer=setTimeout(loop,nextDelay);
+      location.reload(true)
     },delayMs);
+    // runtimeState.timer=setTimeout(async function loop(){
+    //   if(runtimeState.running == false){
+    //     return;
+    //   }
+    //   await runOneCycle();
+    //   const latest=loadSettings();
+    //   const nextDelay=Math.max(1,Number(latest.interval||30))*60000;
+    //   runtimeState.timer=setTimeout(loop,nextDelay);
+    // },delayMs);
   }
 
   const globalUi={};
   if(isTargetPage()){
-    createFloatButton();
+    const floatModal = createFloatButton();
+    const isRunning = localStorage.getItem("feixunAutoChangePriceIsRunning");
+    
     const modal=createModal();
     globalUi.modalOverlay=modal.modalOverlay;
     globalUi.settingsGrid=modal.settingsGrid;
     globalUi.logBox=modal.logBox;
     globalUi.actionBar=modal.actionBar;
     setupStartStop();
+
+    if (isRunning == 1) {
+      floatModal.toolButton.click();
+      appendLog('自动改价开启中，5秒后开始下一轮');
+      setTimeout(() => {
+        globalUi.actionBar.startButton.click();
+      }, 5000);
+    }
   }
 })();
