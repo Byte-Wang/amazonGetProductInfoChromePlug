@@ -22,6 +22,12 @@
     localStorage.setItem(storageKey,JSON.stringify(settings));
   }
 
+  // 日志缓存，减少localStorage读取次数
+  let logCache=null;
+  let lastCacheTime=0;
+  const CACHE_TTL=5000; // 缓存5秒
+  const MAX_LOG_ENTRIES=1000; // 最大保留1000条日志
+  
   function appendLog(text){
     const logBox=doc.getElementById('agp_log');
     if(!logBox){
@@ -35,13 +41,25 @@
 
     try{
       const nowTs=Date.now();
-      const raw=localStorage.getItem(logStorageKey)||'[]';
-      let entries=[];
-      try{entries=JSON.parse(raw)||[];}catch(e){entries=[];}
-      entries.push({ts:nowTs,text});
+      
+      // 使用缓存减少localStorage读取
+      if(!logCache||Date.now()-lastCacheTime>CACHE_TTL){
+        const raw=localStorage.getItem(logStorageKey)||'[]';
+        try{logCache=JSON.parse(raw)||[];}catch(e){logCache=[];}
+        lastCacheTime=Date.now();
+      }
+      
+      // 添加新日志
+      logCache.push({ts:nowTs,text});
+      
+      // 滚动窗口：只保留最近的MAX_LOG_ENTRIES条
+      if(logCache.length>MAX_LOG_ENTRIES){
+        logCache=logCache.slice(-MAX_LOG_ENTRIES);
+      }
 
-      if(entries.length>=2000){
-        const content=entries.map(function(x){var d=new Date(x.ts||Date.now());return d.toLocaleString()+' '+(x.text||'');}).join('\r\n');
+      // 达到2000条时导出并清空
+      if(logCache.length>=2000){
+        const content=logCache.map(function(x){var d=new Date(x.ts||Date.now());return d.toLocaleString()+' '+(x.text||'');}).join('\r\n');
         const blob=new Blob([content],{type:'text/plain'});
         const url=URL.createObjectURL(blob);
         const a=doc.createElement('a');
@@ -51,21 +69,24 @@
         a.click();
         setTimeout(function(){doc.body.removeChild(a);URL.revokeObjectURL(url);},0);
 
-        // 导出后清空日志
-        entries=[];
+        // 清空缓存和日志
+        logCache=[];
         logBox.innerHTML='';
         const clearedLine=doc.createElement('div');
-        clearedLine.textContent=new Date().toLocaleString()+' [系统] 日志已达10000行，已自动导出并清空。';
+        clearedLine.textContent=new Date().toLocaleString()+' [系统] 日志已达2000行，已自动导出并清空。';
         logBox.appendChild(clearedLine);
-      } else {
-        // 保留原有的按时间清理逻辑，避免无限增长但未到10000条的情况（可选，或者直接不按时间只按条数）
-        // 这里根据用户要求“滚动存储10000行”，我们仅保留最近10000行（如果没触发导出的话），
-        // 但既然是“到达10000行自动导出并清空”，那么意味着通常不会超过10000行。
-        // 为了安全起见，我们还是只保留这10000条以内的。
       }
 
-      localStorage.setItem(logStorageKey,JSON.stringify(entries));
-    }catch(e){}
+      // 保存到localStorage
+      localStorage.setItem(logStorageKey,JSON.stringify(logCache));
+      
+      // 及时释放大对象引用
+      if(logCache.length>=2000){
+        logCache=null;
+      }
+    }catch(e){
+      console.error('日志保存失败:',e);
+    }
   }
 
   function createFloatButton(){
@@ -1106,9 +1127,9 @@
 
   async function scanCurrentPageNew(cfg){
     appendLog('========== 开始扫描当前页面改价任务 ==========');
-    appendLog('配置信息：');
-    appendLog('  白名单SKU数量：'+cfg.skuWhitelist?(cfg.skuWhitelist.split(/[,，\n]/).filter(s=>s.trim()).length):0);
-    appendLog('  扫描间隔：'+cfg.interval+'毫秒');
+    // appendLog('配置信息：');
+    // appendLog('  白名单SKU数量：'+cfg.skuWhitelist?(cfg.skuWhitelist.split(/[,，\n]/).filter(s=>s.trim()).length):0);
+    // appendLog('  扫描间隔：'+cfg.interval+'毫秒');
     
     const products=Array.from(doc.querySelectorAll('div[data-sku]'));
     appendLog('本页发现产品数 '+String(products.length));
@@ -1140,13 +1161,13 @@
       
       await saveProductInfoToCloud(product);
       
-      appendLog('SKU '+skuText+' 基本信息：');
-      appendLog('  产品名称：'+nameText);
-      appendLog('  ASIN：'+asin);
-      appendLog('  库存：'+stock);
-      appendLog('  状态：'+productStatus);
-      appendLog('  店铺：'+storeName);
-      appendLog('  地区：'+regionName);
+      // appendLog('SKU '+skuText+' 基本信息：');
+      // appendLog('  产品名称：'+nameText);
+      // appendLog('  ASIN：'+asin);
+      // appendLog('  库存：'+stock);
+      // appendLog('  状态：'+productStatus);
+      // appendLog('  店铺：'+storeName);
+      // appendLog('  地区：'+regionName);
 
       if(whitelist.has(skuText)){
         appendLog('SKU '+skuText+' 在白名单中，跳过改价');
