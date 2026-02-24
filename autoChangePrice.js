@@ -612,14 +612,24 @@
     return '';
   }
 
-
-
   function findStoreName(){
     const navbar=doc.getElementById('navbar');
     if(!navbar){
-      return '';
+      return findStoreName2();
     }
     const span=navbar.querySelector('span.dropdown-account-switcher-header-label-global');
+    if(!span){
+      return findStoreName2();
+    }
+    const txt=(span.textContent||'').trim();
+    if(!txt){
+      return findStoreName2();
+    }
+    return txt;
+  }
+
+  function findStoreName2(){
+    const span=doc.getElementById('ngstrim-account-store-text');
     if(!span){
       return '';
     }
@@ -630,9 +640,21 @@
   function findRegionName(){
     const navbar=doc.getElementById('navbar');
     if(!navbar){
-      return '';
+      return findRegionName2();
     }
     const span=navbar.querySelector('span.dropdown-account-switcher-header-label-regional');
+    if(!span){
+      return findRegionName2();
+    }
+    const txt=(span.textContent||'').trim();
+    if(!txt){
+      return findRegionName2();
+    }
+    return txt;
+  }
+
+  function findRegionName2(){
+    const span=doc.getElementById('ngstrim-account-region-text');
     if(!span){
       return '';
     }
@@ -1210,8 +1232,13 @@
           highRiskSKUs.push(skuText);
           continue;
         }
+
+        let floorRatio = cfg.floorRatio;
+        if (floorRatio < 1.3) {
+          floorRatio = 1.3;
+        }
         
-        const dynamicMinPrice=totalFee!=null?totalFee*1.30:currPriceNum*0.8; // 默认1.3倍费用或当前价格的80%
+        const dynamicMinPrice=totalFee!=null?totalFee*floorRatio:currPriceNum*0.8; // 默认1.3倍费用或当前价格的80%
         appendLog('SKU '+skuText+' 动态最低限价='+dynamicMinPrice.toFixed(2));
         
         // ───────────────────────────────────────
