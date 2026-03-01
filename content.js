@@ -139,6 +139,44 @@ function checkBrand(brand,callback){
     }
 }
 
+function checkBrandIsBlack(brand, retryTimes, callback){
+    const stationName = getRegionNmae();
+     chrome.storage.sync.get('userInfo', function(result) {
+        FXLog("[test] 获取用户信息：",result);
+        const userInfo = result.userInfo;
+        if (!userInfo || !userInfo.token) {
+            FXLog("[test] 没有token，未登录：");
+            callback({desc: "请先登录！"});
+            return;
+        }
+        
+        let url = 'http://119.91.217.3:8087/index.php/admin/index/getBrandBlacklist?version=' + window.feixunPlugVersion;
+        chrome.runtime.sendMessage({
+            action: "makeCorsRequest",
+            url: url,
+            token: userInfo.token,
+            data: {brand_name: brand}
+        },(res)=> {
+            FXLog("[checkBrandIsBlack] 品牌黑名单：",res);
+            var isBlacklisted = false;
+            if (res.code === 1 && res.data && res.data.list && res.data.list.length > 0) {
+                var blacklist = res.data.list;
+                FXLog("[checkBrandIsBlack] 黑名单：",blacklist);
+                // 判断是否在黑名单中
+                for (var i = 0; i < blacklist.length; i++) {
+                    var item = blacklist[i];
+                    // 如果站点匹配或者黑名单中的站点为空，则认为是黑名单品牌
+                    if (item.site === stationName || !item.site || item.site === '') {
+                    isBlacklisted = true;
+                    break;
+                    }
+                }
+            }
+            callback(isBlacklisted);
+        });
+    });
+}
+
 function checkBrandWithAll(brand, retryTimes, callback){
     let result = {
         trademarkOffice: null,
@@ -707,6 +745,23 @@ function getRegion(){
         }  
     }  
     return null;
+}
+
+function getRegionNmae(){
+    const region = getRegion();
+    if (region == 'us') {
+        return '美国';
+    }
+    if (region == 'au') {
+        return '澳大利亚';
+    }
+    if (region == 'uk') {
+        return '英国';
+    }
+    if (region == 'ca') {
+        return '加拿大';
+    }
+    return '未知';
 }
 
 function updateInfo(id,value){
@@ -1641,18 +1696,25 @@ function renderProductInfo(brand,region,listAsin,isList,detailDoc,isRefresh){
                 updateInfo("feixun_plug_brandState"+idSubfix,state);
             };
 
-            if (currentAsinCache && (currentAsinCache['brandTCount'] != -1 || currentAsinCache['brandGCount'] != -1)) {
-                checkBrandCallback({
-                    'trademarkOffice': {
-                        'count': currentAsinCache['brandTCount']
-                    },
-                    'wipo': {
-                        'count': currentAsinCache['brandGCount']
-                    }
-                });
-            } else {
-                checkBrandWithAll(brand,3,checkBrandCallback);
-            }
+            checkBrandIsBlack(brand,3,(isBlackBrand)=>{
+
+                if (isBlackBrand) {
+                    updateInfo("feixun_plug_brandState"+idSubfix,'<span class=\"feixun_plug_flag_red\">黑名单</span>');
+                    return;
+                }
+                if (currentAsinCache && (currentAsinCache['brandTCount'] != -1 || currentAsinCache['brandGCount'] != -1)) {
+                    checkBrandCallback({
+                        'trademarkOffice': {
+                            'count': currentAsinCache['brandTCount']
+                        },
+                        'wipo': {
+                            'count': currentAsinCache['brandGCount']
+                        }
+                    });
+                } else {
+                    checkBrandWithAll(brand,3,checkBrandCallback);
+                }
+            });
         } else {
             checkPduductInfoIsComplete(currentAsinCache,asin,'brand','');
             checkPduductInfoIsComplete(currentAsinCache,asin,'brandGCount',-1);
