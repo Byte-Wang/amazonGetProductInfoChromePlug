@@ -150,12 +150,12 @@ function checkBrandIsBlack(brand, retryTimes, callback){
             return;
         }
         
-        let url = 'http://119.91.217.3:8087/index.php/admin/index/getBrandBlacklist?version=' + window.feixunPlugVersion;
+        let url = 'http://119.91.217.3:8087/index.php/admin/index/getBrandBlacklist?version=' + window.feixunPlugVersion + "&brand_name="+encodeURIComponent(brand);
         chrome.runtime.sendMessage({
             action: "makeCorsRequest",
             url: url,
             token: userInfo.token,
-            data: {brand_name: brand}
+            data: {}
         },(res)=> {
             FXLog("[checkBrandIsBlack] 品牌黑名单：",res);
             var isBlacklisted = false;
@@ -165,10 +165,9 @@ function checkBrandIsBlack(brand, retryTimes, callback){
                 // 判断是否在黑名单中
                 for (var i = 0; i < blacklist.length; i++) {
                     var item = blacklist[i];
-                    // 如果站点匹配或者黑名单中的站点为空，则认为是黑名单品牌
-                    if (item.site === stationName || !item.site || item.site === '') {
-                    isBlacklisted = true;
-                    break;
+                    if (item.site === stationName && item.brand_name == brand) {
+                        isBlacklisted = true;
+                        break;
                     }
                 }
             }
