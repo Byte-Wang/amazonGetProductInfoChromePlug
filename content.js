@@ -361,11 +361,14 @@ function checkAsin(asin,callback){
 }
 
 function getFBA(asin, callback) {
+    FXLog("[fba] 开始执行getFBA函数，ASIN：" + asin);
     // 检查配置，如果不是从云端查询，则调用本地查询方法
     if (!feixunPlugConfig.queryFBAFromCloud) {
+        FXLog("[fba] 配置为本地查询，调用getFbaByLocal");
         getFbaByLocal(asin, callback);
         return;
     }
+    FXLog("[fba] 配置为云端查询");
     chrome.storage.sync.get('userInfo', function(result) {
         FXLog("[fba] 获取用户信息：",result);
         const userInfo = result.userInfo;
@@ -374,11 +377,13 @@ function getFBA(asin, callback) {
             callback({desc: "请先登录！"});
             return;
         }
+        FXLog("[fba] 已获取用户信息，token：" + userInfo.token.substring(0, 10) + "...");
         let region = getRegion();
         FXLog("[fba] 当前区域："+region);
 
         FXLog("[fba] 调用getFba请求");
         let url = 'http://119.91.217.3:8087/index.php/admin/index/getFBA?version=' + window.feixunPlugVersion + '&region='+region+'&asin='+asin;
+        FXLog("[fba] 请求URL：" + url);
         chrome.runtime.sendMessage({
             action: "makeCorsRequest",
             url: url,
@@ -409,9 +414,11 @@ function getFBA(asin, callback) {
 }
 
 function getFbaByLocal(asin,callback){
+    FXLog("[fba] 开始执行getFbaByLocal函数，ASIN：" + asin);
     chrome.storage.sync.get('userInfo', function(result) {
         FXLog("[fba] 本地获取用户信息：",result);
         let region = getRegion();
+        FXLog("[fba] 本地查询，当前区域：" + region);
         let marketplaceId = "";
         if (region == 'ca' || region == 'CA') { // 加拿大
             marketplaceId = 'A2EUQ1WTGCTBG2';
@@ -436,8 +443,10 @@ function getFbaByLocal(asin,callback){
         } else if (region == 'in' || region == 'IN') { // 印度
             marketplaceId = 'A21TJRUUN4KGV';
         }
+        FXLog("[fba] 本地查询，marketplaceId：" + marketplaceId);
 
         let url = 'https://das-server.tool4seller.cn/ap/fba/calculate?marketplaceId='+marketplaceId+'&asin='+asin+'&amount=0.00&t='+Date.now();
+        FXLog("[fba] 本地查询URL：" + url);
         chrome.runtime.sendMessage({
             action: "makeCorsRequest",
             url: url,
@@ -618,7 +627,8 @@ function getMainContentView(asin = "") {
                                         </div>\
                                         <div class=\"feixun_plug_col-3 feixun_plug_text\" style=\"display:flex;\"><b>卖家：</b><span id=\"feixun_plug_soldBy"+idSubfix+"\"><span/></div>\
                                         <div class=\"feixun_plug_col-3\" ><b>配送：</b><span id=\"feixun_plug_ShipsFrom"+idSubfix+"\"></span></div>\
-                                        <div class=\"feixun_plug_col-3\" ><b>卖家数：</b><span id=\"feixun_plug_soldByNumber"+idSubfix+"\"></span>\
+                                        <div class=\"feixun_plug_col-3\" ><b>卖家数：</b><span id=\"feixun_plug_soldByNumber"+idSubfix+"\" style=\"cursor: pointer; text-decoration: underline; color: blue;\"></span>\
+                                        </div>\
                                         </div>\
                                         <div class=\"feixun_plug_col-3\" style=\"padding:0px;\">\
                                         <img style=\"width: 27px;height: 27px;cursor: pointer;\" id=\"feixun_plug_refresh_img"+idSubfix+"\"\
@@ -658,7 +668,13 @@ function getMainContentView(asin = "") {
 function initGetFbaButton(asin,btnId,idSubfix){
 
     const GetFbaButton = document.getElementById(btnId);
+    if (!GetFbaButton) {
+        FXLog("[fba] 未找到按钮元素：" + btnId);
+        return;
+    }
+    FXLog("[fba] 找到按钮元素：" + btnId + "，ASIN：" + asin);
     GetFbaButton.addEventListener('click', function() {
+        FXLog("[fba] 按钮被点击，开始查询FBA信息");
         updateInfo("feixun_plug_amount"+idSubfix,"查询中");
         updateInfo("feixun_plug_totalFba"+idSubfix,"查询中");
         updateInfo("feixun_plug_profitRate"+idSubfix,"查询中");
@@ -811,6 +827,7 @@ function getSoldByNumber(callback,doc = document) {
 function getShipsFrom(callback,doc = document) {  
     const container = doc.getElementById('fulfillerInfoFeature_feature_div');  
     let brand = getBrand() || getBrand2() || getBrand3();
+    let region = getRegion();
     if (!container) {
         callback('**');
         return;
@@ -819,17 +836,30 @@ function getShipsFrom(callback,doc = document) {
     const spans = container.querySelectorAll('span');  
     let ShipsFrom = "其他";
     let shipFormText = "";
+    FXLog("[test] getShipsFrom,span数量："+spans.length);
     spans.forEach(span => {  
         // 检查span的文本内容是否符合条件  
         const text = span.textContent.trim();  
         FXLog("[test] getShipsFrom, 找到元素："+text)
-        if (ShipsFrom == "其他" && (text == "Amazon" || text == "Amazon " + brand)) {  
+        if (ShipsFrom == "其他" && (text == "Amazon" || text == "Amazon " + brand || text == "Amazon " + region.toUpperCase())) {  
             ShipsFrom = `FBA(${text})`;
         } else if (ShipsFrom == "其他" && text.indexOf('Amazon') != -1) {  
             ShipsFrom = `AMZ(${text})`;
         }
         shipFormText = text;
     });
+
+    const element = doc.getElementById('sellerProfileTriggerId');
+    
+    if (ShipsFrom == "其他" && element) {
+        const text = element.innerHTML;
+        if (ShipsFrom == "其他" && (text == "Amazon" || text == "Amazon " + brand || text == "Amazon " + region.toUpperCase())) {  
+            ShipsFrom = `FBA(${text})`;
+        } else if (ShipsFrom == "其他" && text.indexOf('Amazon') != -1) {  
+            ShipsFrom = `AMZ(${text})`;
+        }
+        shipFormText = text;
+    }
 
     if (ShipsFrom == "其他") {
         ShipsFrom = `FBM(${shipFormText})`;
@@ -1570,6 +1600,13 @@ function parserToTitleFeatureDiv(retryTimes){
         });
     });
 
+    const soldFromNumberBtn = document.getElementById('feixun_plug_soldByNumber');
+    soldFromNumberBtn.addEventListener('click', function() {
+        const asin = getASIN();
+        console.log('[fxlog] soldFromNumberBtn click -----')
+        showSellersWindow(asin)
+    });
+
     initGetFbaButton(asin,"getFBA_button","");
 
     renderProductInfo(brand,region,null,false,null,false);
@@ -2271,6 +2308,13 @@ function parserToSerchListView(){
                         });
                     });
                 });
+
+                const soldFromNumberBtn = document.getElementById('feixun_plug_soldByNumber_'+asin);
+                if (soldFromNumberBtn) {
+                    soldFromNumberBtn.addEventListener('click', function() {
+                        showSellersWindow(asin)
+                    });
+                }
                 
                 const idSubfix = (asin && asin != "") ? ("_"+asin) : "";
                 initGetFbaButton(asin,"getFBA_button_"+asin,idSubfix);
@@ -4940,3 +4984,55 @@ mainAction(3);
     M.RabbitLegacy = F._createHelper(P),
     U
 });
+
+// Function to show sellers window
+function showSellersWindow(asin) {
+    // Create the floating window
+    const window = document.createElement('div');
+    window.id = 'all-offers-display';
+    window.className = 'a-section';
+    window.style.right = '0px';
+    window.style.overflow = 'hidden';
+    window.setAttribute('aria-label', 'All Offers Display');
+    window.setAttribute('aria-modal', 'true');
+    window.setAttribute('role', 'dialog');
+    
+    // Create close button
+    const closeButton = document.createElement('button');
+    closeButton.innerText = '关闭';
+    closeButton.style.position = 'absolute';
+    closeButton.style.top = '10px';
+    closeButton.style.right = '10px';
+    closeButton.style.padding = '5px 10px';
+    closeButton.style.backgroundColor = '#f0f0f0';
+    closeButton.style.border = '1px solid #ddd';
+    closeButton.style.borderRadius = '3px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.onclick = function() {
+        document.body.removeChild(window);
+    };
+    
+    // Create content container
+    // const content = document.createElement('div');
+    // content.id = 'feixun_plug_sellers_content';
+    // content.style.marginTop = '40px'; // Space for close button
+    // content.innerHTML = '<div style="text-align: center; padding: 20px;">加载中...</div>';
+    
+    // Assemble the window
+   
+    // window.appendChild(content);
+    document.body.appendChild(window);
+    
+    // Fetch the seller information
+    const url = `/gp/product/ajax/aodAjaxMain/ref=dp_aod_NEW_mbc?asin=${asin}&m=&qid=&smid=&sourcecustomerorglistid=&sourcecustomerorglistitemid=&sr=&pc=dp`;
+    
+    fetch(url)
+    .then(response => response.text())
+    .then(html => {
+        window.innerHTML = html;
+        window.appendChild(closeButton);
+    })
+    .catch(error => {
+        window.innerHTML = `<div style="color: red; padding: 20px;">加载失败: ${error.message}</div>`;
+    });
+}

@@ -1,5 +1,6 @@
 
 function makeCorsRequest(url, token,callback) {
+  console.log("[test] 开始执行GET请求，url:", url);
   console.log("[test] get请求，token:",token);
     fetch(url,{
       method: 'GET', 
@@ -8,7 +9,10 @@ function makeCorsRequest(url, token,callback) {
         'Batoken': token,
       },  
     })  
-    .then(response => response.json())  
+    .then(response => {
+      console.log("[test] GET请求响应状态:", response.status);
+      return response.json();
+    })  
     .then(data => {  
       console.log('Data fetched:', data);  
       callback(null,data); 
@@ -38,6 +42,8 @@ chrome.runtime.onMessage.addListener(
         });
       } else if (request.action === "makePOSTRequest"){
         console.log("[test] 发出POST请求");
+        console.log("[test] POST请求URL:", request.url);
+        console.log("[test] POST请求数据:", request.data);
         fetch(request.url,{
           method: 'POST', 
           headers:{
@@ -47,6 +53,7 @@ chrome.runtime.onMessage.addListener(
           body: JSON.stringify(request.data) 
         })  
         .then(response => {
+          console.log("[test] POST请求响应状态:", response.status);
           // 检查响应状态
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -56,11 +63,14 @@ chrome.runtime.onMessage.addListener(
           return response.text();
         })
         .then(text => {  
+          console.log("[test] POST请求响应文本:", text);
           try {
             // 尝试将响应体解析为 JSON
             const data = JSON.parse(text);
+            console.log("[test] POST请求响应JSON:", data);
             sendResponse(data);
           } catch (error) {
+            console.log("[test] POST请求响应不是JSON:", error);
             sendResponse({"code": -1,"result": text,"desc":"result is not a json"});
           }
         })  
