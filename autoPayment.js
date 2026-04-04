@@ -11,11 +11,12 @@
     // 初始化入口
     function init() {
         const href = window.location.href;
-        if (href.includes('/payments/dashboard')) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (href.includes('/payments/dashboard') && urlParams.get('autoPayment') === '1') {
             currentPageType = 'dashboard';
             createUI();
             startCountdown();
-        } else if (href.includes('/payments/disburse/details')) {
+        } else if (href.includes('/payments/disburse/details') && urlParams.get('autoPayment') === '1') {
             currentPageType = 'details';
             createUI();
             startCountdown();

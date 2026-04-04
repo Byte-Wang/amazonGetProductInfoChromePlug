@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 :: ========== 配置区 ==========
-set "URL=https://sellercentral.amazon.com.au/payments/dashboard/index.html/ref=xx_payments_favb_xx"
+set "URL=https://sellercentral.amazon.com.au/payments/dashboard/index.html/ref=xx_payments_favb_xx&autoPayment=1"
 set "INTERVAL=60"  :: 单位：秒（86400 = 24小时）
 set "BROWSER=C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 :: =========================

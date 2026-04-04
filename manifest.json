@@ -18,7 +18,7 @@
   "content_scripts": [  
     {  
       "matches": ["<all_urls>"], 
-      "js": ["newBg.js","content.js","background.js","xlsx.full.min.js","temuAutoCollection.js","autoChangePrice.js","autoPayment.js"],   
+      "js": ["newBg.js","content.js","background.js","xlsx.full.min.js","temuAutoCollection.js","autoChangePrice.js","autoPayment.js","sha1.min.js","autoLogin.js"],   
       "run_at": "document_end" 
     }  
   ],  
